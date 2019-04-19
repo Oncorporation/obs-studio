@@ -200,6 +200,7 @@ public:
 	void setPeakMeterType(enum obs_peak_meter_type peakMeterType);
 	virtual void mousePressEvent(QMouseEvent *event) override;
 	virtual void wheelEvent(QWheelEvent *event) override;
+	virtual void leaveEvent(QEvent *event) override;
 
 protected:
 	void paintEvent(QPaintEvent *event) override;
