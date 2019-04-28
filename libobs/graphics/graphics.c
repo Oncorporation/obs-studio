@@ -1517,9 +1517,7 @@ gs_indexbuffer_t *gs_indexbuffer_create(enum gs_index_type type,
 		return NULL;
 
 	if (indices && num && (flags & GS_DUP_BUFFER) != 0) {
-		size_t size = type == GS_UNSIGNED_SHORT
-			? sizeof(unsigned short)
-			: sizeof(unsigned long);
+		size_t size = type == GS_UNSIGNED_SHORT ? 2 : 4;
 		indices = bmemdup(indices, size * num);
 	}
 
@@ -2554,6 +2552,49 @@ bool gs_nv12_available(void)
 		return false;
 
 	return thread_graphics->exports.device_nv12_available(
+			thread_graphics->device);
+}
+
+void gs_debug_marker_begin(const float color[4],
+		const char *markername)
+{
+	if (!gs_valid("gs_debug_marker_begin"))
+		return;
+
+	if (!markername)
+		markername = "(null)";
+
+	thread_graphics->exports.device_debug_marker_begin(
+			thread_graphics->device, markername,
+			color);
+}
+
+void gs_debug_marker_begin_format(const float color[4],
+		const char *format, ...)
+{
+	if (!gs_valid("gs_debug_marker_begin"))
+		return;
+
+	if (format) {
+		char markername[64];
+		va_list args;
+		va_start(args, format);
+		vsnprintf(markername, sizeof(markername), format, args);
+		va_end(args);
+		thread_graphics->exports.device_debug_marker_begin(
+			thread_graphics->device, markername,
+			color);
+	} else {
+		gs_debug_marker_begin(color, NULL);
+	}
+}
+
+void gs_debug_marker_end(void)
+{
+	if (!gs_valid("gs_debug_marker_end"))
+		return;
+
+	thread_graphics->exports.device_debug_marker_end(
 			thread_graphics->device);
 }
 

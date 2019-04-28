@@ -1329,15 +1329,21 @@ enum convert_type {
 	CONVERT_420,
 	CONVERT_422_U,
 	CONVERT_422_Y,
+	CONVERT_444,
+	CONVERT_800,
+	CONVERT_RGB_LIMITED,
 };
 
-static inline enum convert_type get_convert_type(enum video_format format)
+static inline enum convert_type get_convert_type(enum video_format format,
+		bool full_range)
 {
 	switch (format) {
 	case VIDEO_FORMAT_I420:
 		return CONVERT_420;
 	case VIDEO_FORMAT_NV12:
 		return CONVERT_NV12;
+	case VIDEO_FORMAT_I444:
+		return CONVERT_444;
 
 	case VIDEO_FORMAT_YVYU:
 	case VIDEO_FORMAT_YUY2:
@@ -1346,12 +1352,13 @@ static inline enum convert_type get_convert_type(enum video_format format)
 		return CONVERT_422_U;
 
 	case VIDEO_FORMAT_Y800:
-	case VIDEO_FORMAT_I444:
+		return CONVERT_800;
+
 	case VIDEO_FORMAT_NONE:
 	case VIDEO_FORMAT_RGBA:
 	case VIDEO_FORMAT_BGRA:
 	case VIDEO_FORMAT_BGRX:
-		return CONVERT_NONE;
+		return full_range ? CONVERT_NONE : CONVERT_RGB_LIMITED;
 	}
 
 	return CONVERT_NONE;
@@ -1360,9 +1367,20 @@ static inline enum convert_type get_convert_type(enum video_format format)
 static inline bool set_packed422_sizes(struct obs_source *source,
 		const struct obs_source_frame *frame)
 {
-	source->async_convert_height = frame->height;
 	source->async_convert_width  = frame->width / 2;
+	source->async_convert_height = frame->height;
 	source->async_texture_format = GS_BGRA;
+	return true;
+}
+
+static inline bool set_planar444_sizes(struct obs_source *source,
+	const struct obs_source_frame *frame)
+{
+	source->async_convert_width   = frame->width;
+	source->async_convert_height  = frame->height * 3;
+	source->async_texture_format  = GS_R8;
+	source->async_plane_offset[0] = (int)(frame->data[1] - frame->data[0]);
+	source->async_plane_offset[1] = (int)(frame->data[2] - frame->data[0]);
 	return true;
 }
 
@@ -1393,10 +1411,28 @@ static inline bool set_nv12_sizes(struct obs_source *source,
 	return true;
 }
 
+static inline bool set_y800_sizes(struct obs_source *source,
+	const struct obs_source_frame *frame)
+{
+	source->async_convert_width   = frame->width;
+	source->async_convert_height  = frame->height;
+	source->async_texture_format  = GS_R8;
+	return true;
+}
+
+static inline bool set_rgb_limited_sizes(struct obs_source *source,
+	const struct obs_source_frame *frame)
+{
+	source->async_convert_width   = frame->width;
+	source->async_convert_height  = frame->height;
+	source->async_texture_format  = convert_video_format(frame->format);
+	return true;
+}
+
 static inline bool init_gpu_conversion(struct obs_source *source,
 		const struct obs_source_frame *frame)
 {
-	switch (get_convert_type(frame->format)) {
+	switch (get_convert_type(frame->format, frame->full_range)) {
 		case CONVERT_422_Y:
 		case CONVERT_422_U:
 			return set_packed422_sizes(source, frame);
@@ -1406,7 +1442,15 @@ static inline bool init_gpu_conversion(struct obs_source *source,
 
 		case CONVERT_NV12:
 			return set_nv12_sizes(source, frame);
-			break;
+
+		case CONVERT_444:
+			return set_planar444_sizes(source, frame);
+
+		case CONVERT_800:
+			return set_y800_sizes(source, frame);
+
+		case CONVERT_RGB_LIMITED:
+			return set_rgb_limited_sizes(source, frame);
 
 		case CONVERT_NONE:
 			assert(false && "No conversion requested");
@@ -1419,16 +1463,19 @@ static inline bool init_gpu_conversion(struct obs_source *source,
 bool set_async_texture_size(struct obs_source *source,
 		const struct obs_source_frame *frame)
 {
-	enum convert_type cur = get_convert_type(frame->format);
+	enum convert_type cur = get_convert_type(frame->format,
+			frame->full_range);
 
-	if (source->async_width  == frame->width  &&
-	    source->async_height == frame->height &&
-	    source->async_format == frame->format)
+	if (source->async_width      == frame->width  &&
+	    source->async_height     == frame->height &&
+	    source->async_format     == frame->format &&
+	    source->async_full_range == frame->full_range)
 		return true;
 
-	source->async_width  = frame->width;
-	source->async_height = frame->height;
-	source->async_format = frame->format;
+	source->async_width      = frame->width;
+	source->async_height     = frame->height;
+	source->async_format     = frame->format;
+	source->async_full_range = frame->full_range;
 
 	gs_enter_context(obs->video.graphics);
 
@@ -1444,8 +1491,10 @@ bool set_async_texture_size(struct obs_source *source,
 	if (cur != CONVERT_NONE && init_gpu_conversion(source, frame)) {
 		source->async_gpu_conversion = true;
 
+		enum gs_color_format format = CONVERT_RGB_LIMITED ?
+			convert_video_format(frame->format) : GS_BGRX;
 		source->async_texrender =
-			gs_texrender_create(GS_BGRX, GS_ZS_NONE);
+			gs_texrender_create(format, GS_ZS_NONE);
 
 		source->async_texture = gs_texture_create(
 				source->async_convert_width,
@@ -1474,19 +1523,18 @@ bool set_async_texture_size(struct obs_source *source,
 static void upload_raw_frame(gs_texture_t *tex,
 		const struct obs_source_frame *frame)
 {
-	switch (get_convert_type(frame->format)) {
+	switch (get_convert_type(frame->format, frame->full_range)) {
 		case CONVERT_422_U:
 		case CONVERT_422_Y:
+		case CONVERT_800:
+		case CONVERT_RGB_LIMITED:
 			gs_texture_set_image(tex, frame->data[0],
 					frame->linesize[0], false);
 			break;
 
 		case CONVERT_420:
-			gs_texture_set_image(tex, frame->data[0],
-					frame->width, false);
-			break;
-
 		case CONVERT_NV12:
+		case CONVERT_444:
 			gs_texture_set_image(tex, frame->data[0],
 					frame->width, false);
 			break;
@@ -1497,7 +1545,8 @@ static void upload_raw_frame(gs_texture_t *tex,
 	}
 }
 
-static const char *select_conversion_technique(enum video_format format)
+static const char *select_conversion_technique(enum video_format format,
+		bool full_range)
 {
 	switch (format) {
 		case VIDEO_FORMAT_UYVY:
@@ -1514,15 +1563,21 @@ static const char *select_conversion_technique(enum video_format format)
 
 		case VIDEO_FORMAT_NV12:
 			return "NV12_Reverse";
-			break;
+
+		case VIDEO_FORMAT_I444:
+			return "I444_Reverse";
 
 		case VIDEO_FORMAT_Y800:
+			return full_range ? "Y800_Full" : "Y800_Limited";
+
 		case VIDEO_FORMAT_BGRA:
 		case VIDEO_FORMAT_BGRX:
 		case VIDEO_FORMAT_RGBA:
 		case VIDEO_FORMAT_NONE:
-		case VIDEO_FORMAT_I444:
-			assert(false && "No conversion requested");
+			if (full_range)
+				assert(false && "No conversion requested");
+			else
+				return "RGB_Limited";
 			break;
 	}
 	return NULL;
@@ -1544,6 +1599,8 @@ static bool update_async_texrender(struct obs_source *source,
 		const struct obs_source_frame *frame,
 		gs_texture_t *tex, gs_texrender_t *texrender)
 {
+	GS_DEBUG_MARKER_BEGIN(GS_DEBUG_COLOR_CONVERT_FORMAT, "Convert Format");
+
 	gs_texrender_reset(texrender);
 
 	upload_raw_frame(tex, frame);
@@ -1554,11 +1611,14 @@ static bool update_async_texrender(struct obs_source *source,
 	float convert_width  = (float)source->async_convert_width;
 
 	gs_effect_t *conv = obs->video.conversion_effect;
-	gs_technique_t *tech = gs_effect_get_technique(conv,
-			select_conversion_technique(frame->format));
+	const char *tech_name = select_conversion_technique(frame->format,
+			frame->full_range);
+	gs_technique_t *tech = gs_effect_get_technique(conv, tech_name);
 
-	if (!gs_texrender_begin(texrender, cx, cy))
+	if (!gs_texrender_begin(texrender, cx, cy)) {
+		GS_DEBUG_MARKER_END();
 		return false;
+	}
 
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
@@ -1577,6 +1637,19 @@ static bool update_async_texrender(struct obs_source *source,
 	set_eparami(conv, "int_v_plane_offset",
 			(int)source->async_plane_offset[1]);
 
+	gs_effect_set_val(gs_effect_get_param_by_name(conv, "color_matrix"),
+			frame->color_matrix, sizeof(float) * 16);
+	if (!frame->full_range) {
+		gs_eparam_t *min_param = gs_effect_get_param_by_name(
+				conv, "color_range_min");
+		gs_effect_set_val(min_param, frame->color_range_min,
+				sizeof(float) * 3);
+		gs_eparam_t *max_param = gs_effect_get_param_by_name(
+				conv, "color_range_max");
+		gs_effect_set_val(max_param, frame->color_range_max,
+				sizeof(float) * 3);
+	}
+
 	gs_ortho(0.f, (float)cx, 0.f, (float)cy, -100.f, 100.f);
 
 	gs_draw_sprite(tex, 0, cx, cy);
@@ -1586,6 +1659,7 @@ static bool update_async_texrender(struct obs_source *source,
 
 	gs_texrender_end(texrender);
 
+	GS_DEBUG_MARKER_END();
 	return true;
 }
 
@@ -1593,22 +1667,16 @@ bool update_async_texture(struct obs_source *source,
 		const struct obs_source_frame *frame,
 		gs_texture_t *tex, gs_texrender_t *texrender)
 {
-	enum convert_type type      = get_convert_type(frame->format);
+	enum convert_type type;
 	uint8_t           *ptr;
 	uint32_t          linesize;
 
 	source->async_flip       = frame->flip;
-	source->async_full_range = frame->full_range;
-	memcpy(source->async_color_matrix, frame->color_matrix,
-			sizeof(frame->color_matrix));
-	memcpy(source->async_color_range_min, frame->color_range_min,
-			sizeof frame->color_range_min);
-	memcpy(source->async_color_range_max, frame->color_range_max,
-			sizeof frame->color_range_max);
 
 	if (source->async_gpu_conversion && texrender)
 		return update_async_texrender(source, frame, tex, texrender);
 
+	type = get_convert_type(frame->format, frame->full_range);
 	if (type == CONVERT_NONE) {
 		gs_texture_set_image(tex, frame->data[0], frame->linesize[0],
 				false);
@@ -1619,13 +1687,11 @@ bool update_async_texture(struct obs_source *source,
 		return false;
 
 	if (type == CONVERT_420)
-		decompress_420((const uint8_t* const*)frame->data,
-				frame->linesize,
+		decompress_420(frame->data, frame->linesize,
 				0, frame->height, ptr, linesize);
 
 	else if (type == CONVERT_NV12)
-		decompress_nv12((const uint8_t* const*)frame->data,
-				frame->linesize,
+		decompress_nv12(frame->data, frame->linesize,
 				0, frame->height, ptr, linesize);
 
 	else if (type == CONVERT_422_Y)
@@ -1641,31 +1707,13 @@ bool update_async_texture(struct obs_source *source,
 }
 
 static inline void obs_source_draw_texture(struct obs_source *source,
-		gs_effect_t *effect, float *color_matrix,
-		float const *color_range_min, float const *color_range_max)
+		gs_effect_t *effect)
 {
 	gs_texture_t *tex = source->async_texture;
 	gs_eparam_t  *param;
 
 	if (source->async_texrender)
 		tex = gs_texrender_get_texture(source->async_texrender);
-
-	if (color_range_min) {
-		size_t const size = sizeof(float) * 3;
-		param = gs_effect_get_param_by_name(effect, "color_range_min");
-		gs_effect_set_val(param, color_range_min, size);
-	}
-
-	if (color_range_max) {
-		size_t const size = sizeof(float) * 3;
-		param = gs_effect_get_param_by_name(effect, "color_range_max");
-		gs_effect_set_val(param, color_range_max, size);
-	}
-
-	if (color_matrix) {
-		param = gs_effect_get_param_by_name(effect, "color_matrix");
-		gs_effect_set_val(param, color_matrix, sizeof(float) * 16);
-	}
 
 	param = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(param, tex);
@@ -1675,24 +1723,18 @@ static inline void obs_source_draw_texture(struct obs_source *source,
 
 static void obs_source_draw_async_texture(struct obs_source *source)
 {
-	gs_effect_t    *effect        = gs_get_effect();
-	bool           yuv           = format_is_yuv(source->async_format);
-	bool           limited_range = yuv && !source->async_full_range;
-	const char     *type         = yuv ? "DrawMatrix" : "Draw";
+	gs_effect_t    *effect       = gs_get_effect();
 	bool           def_draw      = (!effect);
-	gs_technique_t *tech          = NULL;
+	gs_technique_t *tech         = NULL;
 
 	if (def_draw) {
 		effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		tech = gs_effect_get_technique(effect, type);
+		tech = gs_effect_get_technique(effect, "Draw");
 		gs_technique_begin(tech);
 		gs_technique_begin_pass(tech, 0);
 	}
 
-	obs_source_draw_texture(source, effect,
-			yuv ? source->async_color_matrix : NULL,
-			limited_range ? source->async_color_range_min : NULL,
-			limited_range ? source->async_color_range_max : NULL);
+	obs_source_draw_texture(source, effect);
 
 	if (def_draw) {
 		gs_technique_end_pass(tech);
@@ -1785,6 +1827,24 @@ static inline void obs_source_main_render(obs_source_t *source)
 
 static bool ready_async_frame(obs_source_t *source, uint64_t sys_time);
 
+#if GS_USE_DEBUG_MARKERS
+static const char *get_type_format(enum obs_source_type type)
+{
+	switch (type) {
+	case OBS_SOURCE_TYPE_INPUT:
+		return "Input: %s";
+	case OBS_SOURCE_TYPE_FILTER:
+		return "Filter: %s";
+	case OBS_SOURCE_TYPE_TRANSITION:
+		return "Transition: %s";
+	case OBS_SOURCE_TYPE_SCENE:
+		return "Scene: %s";
+	default:
+		return "[Unknown]: %s";
+	}
+}
+#endif
+
 static inline void render_video(obs_source_t *source)
 {
 	if (source->info.type != OBS_SOURCE_TYPE_FILTER &&
@@ -1808,6 +1868,10 @@ static inline void render_video(obs_source_t *source)
 		return;
 	}
 
+	GS_DEBUG_MARKER_BEGIN_FORMAT(GS_DEBUG_COLOR_SOURCE,
+			get_type_format(source->info.type),
+			obs_source_get_name(source));
+
 	if (source->filters.num && !source->rendering_filter)
 		obs_source_render_filters(source);
 
@@ -1822,6 +1886,8 @@ static inline void render_video(obs_source_t *source)
 
 	else
 		obs_source_render_async_video(source);
+
+	GS_DEBUG_MARKER_END();
 }
 
 void obs_source_video_render(obs_source_t *source)
@@ -2217,41 +2283,6 @@ static inline void copy_frame_data_plane(struct obs_source_frame *dst,
 				dst->linesize[plane] * lines);
 }
 
-static void copy_frame_data_line_y800(uint32_t *dst, uint8_t *src, uint8_t *end)
-{
-	while (src < end) {
-		register uint32_t val = *(src++);
-		val |= (val << 8);
-		val |= (val << 16);
-		*(dst++) = val;
-	}
-}
-
-static inline void copy_frame_data_y800(struct obs_source_frame *dst,
-		const struct obs_source_frame *src)
-{
-	uint32_t *ptr_dst;
-	uint8_t  *ptr_src;
-	uint8_t  *src_end;
-
-	if ((src->linesize[0] * 4) != dst->linesize[0]) {
-		for (uint32_t cy = 0; cy < src->height; cy++) {
-			ptr_dst = (uint32_t*)
-				(dst->data[0] + cy * dst->linesize[0]);
-			ptr_src = (src->data[0] + cy * src->linesize[0]);
-			src_end = ptr_src + src->width;
-
-			copy_frame_data_line_y800(ptr_dst, ptr_src, src_end);
-		}
-	} else {
-		ptr_dst = (uint32_t*)dst->data[0];
-		ptr_src = (uint8_t *)src->data[0];
-		src_end = ptr_src + src->height * src->linesize[0];
-
-		copy_frame_data_line_y800(ptr_dst, ptr_src, src_end);
-	}
-}
-
 static void copy_frame_data(struct obs_source_frame *dst,
 		const struct obs_source_frame *src)
 {
@@ -2290,11 +2321,8 @@ static void copy_frame_data(struct obs_source_frame *dst,
 	case VIDEO_FORMAT_RGBA:
 	case VIDEO_FORMAT_BGRA:
 	case VIDEO_FORMAT_BGRX:
-		copy_frame_data_plane(dst, src, 0, dst->height);
-		break;
-
 	case VIDEO_FORMAT_Y800:
-		copy_frame_data_y800(dst, src);
+		copy_frame_data_plane(dst, src, 0, dst->height);
 		break;
 	}
 }
@@ -2309,8 +2337,9 @@ static inline bool async_texture_changed(struct obs_source *source,
 		const struct obs_source_frame *frame)
 {
 	enum convert_type prev, cur;
-	prev = get_convert_type(source->async_cache_format);
-	cur  = get_convert_type(frame->format);
+	prev = get_convert_type(source->async_cache_format,
+			source->async_cache_full_range);
+	cur  = get_convert_type(frame->format, frame->full_range);
 
 	return source->async_cache_width  != frame->width ||
 	       source->async_cache_height != frame->height ||
@@ -2363,9 +2392,10 @@ static inline struct obs_source_frame *cache_video(struct obs_source *source,
 
 	if (async_texture_changed(source, frame)) {
 		free_async_cache(source);
-		source->async_cache_width  = frame->width;
-		source->async_cache_height = frame->height;
-		source->async_cache_format = frame->format;
+		source->async_cache_width      = frame->width;
+		source->async_cache_height     = frame->height;
+		source->async_cache_format     = frame->format;
+		source->async_cache_full_range = frame->full_range;
 	}
 
 	for (size_t i = 0; i < source->async_cache.num; i++) {
@@ -2383,9 +2413,6 @@ static inline struct obs_source_frame *cache_video(struct obs_source *source,
 	if (!new_frame) {
 		struct async_frame new_af;
 		enum video_format format = frame->format;
-
-		if (format == VIDEO_FORMAT_Y800)
-			format = VIDEO_FORMAT_BGRX;
 
 		new_frame = obs_source_frame_create(format,
 				frame->width, frame->height);
@@ -2406,7 +2433,7 @@ static inline struct obs_source_frame *cache_video(struct obs_source *source,
 	return new_frame;
 }
 
-void obs_source_output_video(obs_source_t *source,
+static void obs_source_output_video_internal(obs_source_t *source,
 		const struct obs_source_frame *frame)
 {
 	if (!obs_source_valid(source, "obs_source_output_video"))
@@ -2434,6 +2461,56 @@ void obs_source_output_video(obs_source_t *source,
 	pthread_mutex_unlock(&source->async_mutex);
 }
 
+void obs_source_output_video(obs_source_t *source,
+		const struct obs_source_frame *frame)
+{
+	if (!frame) {
+		obs_source_output_video_internal(source, NULL);
+		return;
+	}
+
+	struct obs_source_frame new_frame = *frame;
+	new_frame.full_range = format_is_yuv(frame->format)
+		? new_frame.full_range
+		: true;
+
+	obs_source_output_video_internal(source, &new_frame);
+}
+
+void obs_source_output_video2(obs_source_t *source,
+		const struct obs_source_frame2 *frame)
+{
+	if (!frame) {
+		obs_source_output_video_internal(source, NULL);
+		return;
+	}
+
+	struct obs_source_frame new_frame;
+	enum video_range_type range = resolve_video_range(frame->format,
+			frame->range);
+
+	for (size_t i = 0; i < MAX_AV_PLANES; i++) {
+		new_frame.data[i] = frame->data[i];
+		new_frame.linesize[i] = frame->linesize[i];
+	}
+
+	new_frame.width = frame->width;
+	new_frame.height = frame->height;
+	new_frame.timestamp = frame->timestamp;
+	new_frame.format = frame->format;
+	new_frame.full_range = range == VIDEO_RANGE_FULL;
+	new_frame.flip = frame->flip;
+
+	memcpy(&new_frame.color_matrix, &frame->color_matrix,
+			sizeof(frame->color_matrix));
+	memcpy(&new_frame.color_range_min, &frame->color_range_min,
+			sizeof(frame->color_range_min));
+	memcpy(&new_frame.color_range_max, &frame->color_range_max,
+			sizeof(frame->color_range_max));
+
+	obs_source_output_video_internal(source, &new_frame);
+}
+
 static inline bool preload_frame_changed(obs_source_t *source,
 		const struct obs_source_frame *in)
 {
@@ -2445,7 +2522,7 @@ static inline bool preload_frame_changed(obs_source_t *source,
 	       in->format != source->async_preload_frame->format;
 }
 
-void obs_source_preload_video(obs_source_t *source,
+static void obs_source_preload_video_internal(obs_source_t *source,
 		const struct obs_source_frame *frame)
 {
 	if (!obs_source_valid(source, "obs_source_preload_video"))
@@ -2472,6 +2549,56 @@ void obs_source_preload_video(obs_source_t *source,
 	source->last_frame_ts = frame->timestamp;
 
 	obs_leave_graphics();
+}
+
+void obs_source_preload_video(obs_source_t *source,
+		const struct obs_source_frame *frame)
+{
+	if (!frame) {
+		obs_source_preload_video_internal(source, NULL);
+		return;
+	}
+
+	struct obs_source_frame new_frame = *frame;
+	new_frame.full_range = format_is_yuv(frame->format)
+		? new_frame.full_range
+		: true;
+
+	obs_source_preload_video_internal(source, &new_frame);
+}
+
+void obs_source_preload_video2(obs_source_t *source,
+		const struct obs_source_frame2 *frame)
+{
+	if (!frame) {
+		obs_source_preload_video_internal(source, NULL);
+		return;
+	}
+
+	struct obs_source_frame new_frame;
+	enum video_range_type range = resolve_video_range(frame->format,
+			frame->range);
+
+	for (size_t i = 0; i < MAX_AV_PLANES; i++) {
+		new_frame.data[i] = frame->data[i];
+		new_frame.linesize[i] = frame->linesize[i];
+	}
+
+	new_frame.width = frame->width;
+	new_frame.height = frame->height;
+	new_frame.timestamp = frame->timestamp;
+	new_frame.format = frame->format;
+	new_frame.full_range = range == VIDEO_RANGE_FULL;
+	new_frame.flip = frame->flip;
+
+	memcpy(&new_frame.color_matrix, &frame->color_matrix,
+			sizeof(frame->color_matrix));
+	memcpy(&new_frame.color_range_min, &frame->color_range_min,
+			sizeof(frame->color_range_min));
+	memcpy(&new_frame.color_range_max, &frame->color_range_max,
+			sizeof(frame->color_range_max));
+
+	obs_source_preload_video_internal(source, &new_frame);
 }
 
 void obs_source_show_preloaded_video(obs_source_t *source)

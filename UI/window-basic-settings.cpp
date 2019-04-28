@@ -48,6 +48,7 @@
 #include "window-projector.hpp"
 
 #include <util/platform.h>
+#include "ui-config.h"
 
 using namespace std;
 
@@ -295,10 +296,6 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 
 	ui->listWidget->setAttribute(Qt::WA_MacShowFocusRect, false);
 
-	auto policy = ui->audioSourceScrollArea->sizePolicy();
-	policy.setVerticalStretch(true);
-	ui->audioSourceScrollArea->setSizePolicy(policy);
-
 	HookWidget(ui->language,             COMBO_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->theme, 		     COMBO_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->enableAutoUpdates,    CHECK_CHANGED,  GENERAL_CHANGED);
@@ -325,6 +322,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->overflowSelectionHide,CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->doubleClickSwitch,    CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->studioPortraitLayout, CHECK_CHANGED,  GENERAL_CHANGED);
+	HookWidget(ui->prevProgLabelToggle,  CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->multiviewMouseSwitch, CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->multiviewDrawNames,   CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->multiviewDrawAreas,   CHECK_CHANGED,  GENERAL_CHANGED);
@@ -333,6 +331,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->server,               COMBO_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->customServer,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->key,                  EDIT_CHANGED,   STREAM1_CHANGED);
+	HookWidget(ui->bandwidthTestEnable,  CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->useAuth,              CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->authUsername,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
@@ -469,8 +468,8 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 #endif
 
 #if !defined(_WIN32) && !defined(__APPLE__) && !HAVE_PULSEAUDIO
-	delete ui->advAudioGroupBox;
-	ui->advAudioGroupBox = nullptr;
+	delete ui->audioAdvGroupBox;
+	ui->audioAdvGroupBox = nullptr;
 #endif
 
 #ifdef _WIN32
@@ -1001,17 +1000,31 @@ void OBSBasicSettings::LoadThemeList()
 		}
 	}
 
+	QString defaultTheme;
+	defaultTheme += DEFAULT_THEME;
+	defaultTheme += " ";
+	defaultTheme += QTStr("Default");
+
 	/* Check shipped themes. */
 	QDirIterator uIt(QString(themeDir.c_str()), QStringList() << "*.qss",
 			QDir::Files);
 	while (uIt.hasNext()) {
 		uIt.next();
 		QString name = uIt.fileName().section(".",0,0);
-		if (!uniqueSet.contains(name))
+
+		if (name == DEFAULT_THEME)
+			name = defaultTheme;
+
+		if (!uniqueSet.contains(name) && name != "Default")
 			ui->theme->addItem(name);
 	}
 
-	int idx = ui->theme->findText(App()->GetTheme());
+	const char *themeName = App()->GetTheme();
+
+	if (strcmp(themeName, DEFAULT_THEME) == 0)
+		themeName = QT_TO_UTF8(defaultTheme);
+
+	int idx = ui->theme->findText(themeName);
 	if (idx != -1)
 		ui->theme->setCurrentIndex(idx);
 }
@@ -1119,6 +1132,10 @@ void OBSBasicSettings::LoadGeneralSettings()
 	bool studioPortraitLayout = config_get_bool(GetGlobalConfig(),
 			"BasicWindow", "StudioPortraitLayout");
 	ui->studioPortraitLayout->setChecked(studioPortraitLayout);
+
+	bool prevProgLabels = config_get_bool(GetGlobalConfig(),
+			"BasicWindow", "StudioModeLabels");
+	ui->prevProgLabelToggle->setChecked(prevProgLabels);
 
 	bool multiviewMouseSwitch = config_get_bool(GetGlobalConfig(),
 			"BasicWindow", "MultiviewMouseSwitch");
@@ -1941,7 +1958,7 @@ void OBSBasicSettings::LoadListValues(QComboBox *widget, obs_property_t *prop,
 			deviceId = obs_data_get_string(settings, "device_id");
 	}
 
-	widget->addItem(QTStr("Disabled"), "disabled");
+	widget->addItem(QTStr("Basic.Settings.Audio.Disabled"), "disabled");
 
 	for (size_t i = 0; i < count; i++) {
 		const char *name = obs_property_list_item_name(prop, i);
@@ -2000,17 +2017,21 @@ void OBSBasicSettings::LoadAudioDevices()
 
 void OBSBasicSettings::LoadAudioSources()
 {
+	if (ui->audioSourceLayout->rowCount() > 0) {
+		QLayoutItem *forDeletion = ui->audioSourceLayout->takeAt(0);
+		delete forDeletion->widget();
+		delete forDeletion;
+	}
 	auto layout = new QFormLayout();
 	layout->setVerticalSpacing(15);
 	layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 
-	ui->audioSourceScrollArea->takeWidget()->deleteLater();
 	audioSourceSignals.clear();
 	audioSources.clear();
 
 	auto widget = new QWidget();
 	widget->setLayout(layout);
-	ui->audioSourceScrollArea->setWidget(widget);
+	ui->audioSourceLayout->addRow(widget);
 
 	const char *enablePtm = Str("Basic.Settings.Audio.EnablePushToMute");
 	const char *ptmDelay  = Str("Basic.Settings.Audio.PushToMuteDelay");
@@ -2089,6 +2110,8 @@ void OBSBasicSettings::LoadAudioSources()
 				ptmCB, pttSB, pttCB, pttSB);
 
 		auto label = new OBSSourceLabel(source);
+		label->setMinimumSize(QSize(170, 0));
+		label->setAlignment(Qt::AlignRight | Qt::AlignTrailing | Qt::AlignVCenter);
 		connect(label, &OBSSourceLabel::Removed,
 				[=]()
 				{
@@ -2114,9 +2137,9 @@ void OBSBasicSettings::LoadAudioSources()
 
 
 	if (layout->rowCount() == 0)
-		ui->audioSourceScrollArea->hide();
+		ui->audioHotkeysGroupBox->hide();
 	else
-		ui->audioSourceScrollArea->show();
+		ui->audioHotkeysGroupBox->show();
 }
 
 void OBSBasicSettings::LoadAudioSettings()
@@ -2651,13 +2674,19 @@ void OBSBasicSettings::SaveGeneralSettings()
 
 	int themeIndex = ui->theme->currentIndex();
 	QString themeData = ui->theme->itemText(themeIndex);
-	string theme = themeData.toStdString();
+	QString defaultTheme;
+	defaultTheme += DEFAULT_THEME;
+	defaultTheme += " ";
+	defaultTheme += QTStr("Default");
+
+	if (themeData == defaultTheme)
+		themeData = DEFAULT_THEME;
 
 	if (WidgetChanged(ui->theme)) {
 		config_set_string(GetGlobalConfig(), "General", "CurrentTheme",
-				  theme.c_str());
+				  QT_TO_UTF8(themeData));
 
-		App()->SetTheme(theme);
+		App()->SetTheme(themeData.toUtf8().constData());
 	}
 
 #if defined(_WIN32) || defined(__APPLE__)
@@ -2763,6 +2792,14 @@ void OBSBasicSettings::SaveGeneralSettings()
 		config_set_bool(GetGlobalConfig(), "BasicWindow",
 				"StudioPortraitLayout",
 				ui->studioPortraitLayout->isChecked());
+
+		main->ResetUI();
+	}
+
+	if (WidgetChanged(ui->prevProgLabelToggle)) {
+		config_set_bool(GetGlobalConfig(), "BasicWindow",
+				"StudioModeLabels",
+				ui->prevProgLabelToggle->isChecked());
 
 		main->ResetUI();
 	}
@@ -3378,8 +3415,17 @@ void OBSBasicSettings::closeEvent(QCloseEvent *event)
 
 void OBSBasicSettings::on_theme_activated(int idx)
 {
-	string currT = ui->theme->itemText(idx).toStdString();
-	App()->SetTheme(currT);
+	QString currT = ui->theme->itemText(idx);
+
+	QString defaultTheme;
+	defaultTheme += DEFAULT_THEME;
+	defaultTheme += " ";
+	defaultTheme += QTStr("Default");
+
+	if (currT == defaultTheme)
+		currT = DEFAULT_THEME;
+
+	App()->SetTheme(currT.toUtf8().constData());
 }
 
 void OBSBasicSettings::on_listWidget_itemSelectionChanged()
@@ -3888,7 +3934,8 @@ void OBSBasicSettings::AdvOutRecCheckWarnings()
 		warningMsg = QTStr("OutputWarnings.MultiTrackRecording");
 	}
 
-	if (ui->advOutRecFormat->currentText().compare("mp4") == 0) {
+	if (ui->advOutRecFormat->currentText().compare("mp4") == 0 ||
+	    ui->advOutRecFormat->currentText().compare("mov") == 0) {
 		if (!warningMsg.isEmpty())
 			warningMsg += "\n\n";
 		warningMsg += QTStr("OutputWarnings.MP4Recording");
@@ -4347,7 +4394,8 @@ void OBSBasicSettings::SimpleRecordingEncoderChanged()
 		}
 	}
 
-	if (ui->simpleOutRecFormat->currentText().compare("mp4") == 0) {
+	if (ui->simpleOutRecFormat->currentText().compare("mp4") == 0 ||
+	    ui->simpleOutRecFormat->currentText().compare("mov") == 0) {
 		if (!warning.isEmpty())
 			warning += "\n\n";
 		warning += QTStr("OutputWarnings.MP4Recording");
@@ -4453,4 +4501,39 @@ void OBSBasicSettings::on_disableOSXVSync_clicked()
 		ui->resetOSXVSync->setEnabled(disable);
 	}
 #endif
+}
+
+void OBSBasicSettings::SetGeneralIcon(const QIcon &icon)
+{
+	ui->listWidget->item(0)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetStreamIcon(const QIcon &icon)
+{
+	ui->listWidget->item(1)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetOutputIcon(const QIcon &icon)
+{
+	ui->listWidget->item(2)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetAudioIcon(const QIcon &icon)
+{
+	ui->listWidget->item(3)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetVideoIcon(const QIcon &icon)
+{
+	ui->listWidget->item(4)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetHotkeysIcon(const QIcon &icon)
+{
+	ui->listWidget->item(5)->setIcon(icon);
+}
+
+void OBSBasicSettings::SetAdvancedIcon(const QIcon &icon)
+{
+	ui->listWidget->item(6)->setIcon(icon);
 }

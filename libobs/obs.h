@@ -116,7 +116,8 @@ enum obs_scale_type {
 	OBS_SCALE_POINT,
 	OBS_SCALE_BICUBIC,
 	OBS_SCALE_BILINEAR,
-	OBS_SCALE_LANCZOS
+	OBS_SCALE_LANCZOS,
+	OBS_SCALE_AREA,
 };
 
 /**
@@ -219,6 +220,10 @@ struct obs_source_audio {
  *
  * If a YUV format is specified, it will be automatically upsampled and
  * converted to RGB via shader on the graphics processor.
+ *
+ * NOTE: Non-YUV formats will always be treated as full range with this
+ * structure!  Use obs_source_frame2 along with obs_source_output_video2
+ * instead if partial range support is desired for non-YUV video formats.
  */
 struct obs_source_frame {
 	uint8_t             *data[MAX_AV_PLANES];
@@ -237,6 +242,21 @@ struct obs_source_frame {
 	/* used internally by libobs */
 	volatile long       refs;
 	bool                prev_frame;
+};
+
+struct obs_source_frame2 {
+	uint8_t               *data[MAX_AV_PLANES];
+	uint32_t              linesize[MAX_AV_PLANES];
+	uint32_t              width;
+	uint32_t              height;
+	uint64_t              timestamp;
+
+	enum video_format     format;
+	enum video_range_type range;
+	float                 color_matrix[16];
+	float                 color_range_min[3];
+	float                 color_range_max[3];
+	bool                  flip;
 };
 
 /** Access to the argc/argv used to start OBS. What you see is what you get. */
@@ -602,6 +622,7 @@ enum obs_base_effect {
 	OBS_EFFECT_BILINEAR_LOWRES,    /**< Bilinear low resolution downscale */
 	OBS_EFFECT_PREMULTIPLIED_ALPHA,/**< Premultiplied alpha */
 	OBS_EFFECT_REPEAT,             /**< RGB/YUV (repeating) */
+	OBS_EFFECT_AREA,               /**< Area rescale */
 };
 
 /** Returns a commonly used base effect */
@@ -674,6 +695,7 @@ enum obs_obj_type {
 EXPORT enum obs_obj_type obs_obj_get_type(void *obj);
 EXPORT const char *obs_obj_get_id(void *obj);
 EXPORT bool obs_obj_invalid(void *obj);
+EXPORT void *obs_obj_get_data(void *obj);
 
 typedef bool (*obs_enum_audio_device_cb)(void *data, const char *name,
 		const char *id);
@@ -1114,13 +1136,29 @@ EXPORT void obs_source_draw_set_color_matrix(
 EXPORT void obs_source_draw(gs_texture_t *image, int x, int y,
 		uint32_t cx, uint32_t cy, bool flip);
 
-/** Outputs asynchronous video data.  Set to NULL to deactivate the texture */
+/**
+ * Outputs asynchronous video data.  Set to NULL to deactivate the texture
+ *
+ * NOTE: Non-YUV formats will always be treated as full range with this
+ * function!  Use obs_source_output_video2 instead if partial range support is
+ * desired for non-YUV video formats.
+ */
 EXPORT void obs_source_output_video(obs_source_t *source,
 		const struct obs_source_frame *frame);
+EXPORT void obs_source_output_video2(obs_source_t *source,
+		const struct obs_source_frame2 *frame);
 
-/** Preloads asynchronous video data to allow instantaneous playback */
+/**
+ * Preloads asynchronous video data to allow instantaneous playback
+ *
+ * NOTE: Non-YUV formats will always be treated as full range with this
+ * function!  Use obs_source_preload_video2 instead if partial range support is
+ * desired for non-YUV video formats.
+ */
 EXPORT void obs_source_preload_video(obs_source_t *source,
 		const struct obs_source_frame *frame);
+EXPORT void obs_source_preload_video2(obs_source_t *source,
+		const struct obs_source_frame2 *frame);
 
 /** Shows any preloaded video data */
 EXPORT void obs_source_show_preloaded_video(obs_source_t *source);
@@ -1450,6 +1488,8 @@ EXPORT void obs_sceneitem_get_draw_transform(const obs_sceneitem_t *item,
 		struct matrix4 *transform);
 EXPORT void obs_sceneitem_get_box_transform(const obs_sceneitem_t *item,
 		struct matrix4 *transform);
+EXPORT void obs_sceneitem_get_box_scale(const obs_sceneitem_t *item,
+		struct vec2 *scale);
 
 EXPORT bool obs_sceneitem_visible(const obs_sceneitem_t *item);
 EXPORT bool obs_sceneitem_set_visible(obs_sceneitem_t *item, bool visible);
@@ -1714,6 +1754,8 @@ EXPORT const char *obs_output_get_id(const obs_output_t *output);
 #if BUILD_CAPTIONS
 EXPORT void obs_output_output_caption_text1(obs_output_t *output,
 		const char *text);
+EXPORT void obs_output_output_caption_text2(obs_output_t *output,
+		const char *text, double display_duration);
 #endif
 
 EXPORT float obs_output_get_congestion(obs_output_t *output);
