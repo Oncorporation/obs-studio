@@ -21,6 +21,7 @@
 #include <QAction>
 #include <QWidgetAction>
 #include <QSystemTrayIcon>
+#include <QStyledItemDelegate>
 #include <obs.hpp>
 #include <vector>
 #include <memory>
@@ -155,7 +156,7 @@ private:
 	bool fullscreenInterface = false;
 
 	const char *copyString;
-	const char *copyFiltersString;
+	const char *copyFiltersString = nullptr;
 	bool copyVisible = true;
 
 	QScopedPointer<QThread> updateCheckThread;
@@ -323,7 +324,7 @@ private:
 	int GetTopSelectedSourceItem();
 
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys,
-	                   replayBufHotkeys;
+	                   replayBufHotkeys, togglePreviewHotkeys;
 	obs_hotkey_id forceStreamingStopHotkey;
 
 	void InitDefaultTransitions();
@@ -437,7 +438,7 @@ public slots:
 
 	void RecordingStart();
 	void RecordStopping();
-	void RecordingStop(int code);
+	void RecordingStop(int code, QString last_error);
 
 	void StartReplayBuffer();
 	void StopReplayBuffer();
@@ -521,6 +522,15 @@ private slots:
 	SourceTreeItem *GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem);
 
 	void on_actionShowAbout_triggered();
+
+	void AudioMixerCopyFilters();
+	void AudioMixerPasteFilters();
+
+	void EnablePreview();
+	void DisablePreview();
+
+	void SceneCopyFilters();
+	void ScenePasteFilters();
 
 private:
 	/* OBS Callbacks */
@@ -669,6 +679,8 @@ private slots:
 	void on_actionFitToScreen_triggered();
 	void on_actionStretchToScreen_triggered();
 	void on_actionCenterToScreen_triggered();
+	void on_actionVerticalCenter_triggered();
+	void on_actionHorizontalCenter_triggered();
 
 	void on_scenes_currentItemChanged(QListWidgetItem *current,
 			QListWidgetItem *prev);
@@ -812,4 +824,16 @@ public:
 
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;
+};
+
+class SceneRenameDelegate : public QStyledItemDelegate {
+	Q_OBJECT
+
+public:
+	SceneRenameDelegate(QObject *parent);
+	virtual void setEditorData(QWidget *editor, const QModelIndex &index)
+		const override;
+
+protected:
+	virtual bool eventFilter(QObject *editor, QEvent *event) override;
 };

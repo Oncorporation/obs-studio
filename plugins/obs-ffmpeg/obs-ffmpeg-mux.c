@@ -113,13 +113,9 @@ static void *ffmpeg_mux_create(obs_data_t *settings, obs_output_t *output)
 }
 
 #ifdef _WIN32
-#ifdef _WIN64
-#define FFMPEG_MUX "ffmpeg-mux64.exe"
+#define FFMPEG_MUX "obs-ffmpeg-mux.exe"
 #else
-#define FFMPEG_MUX "ffmpeg-mux32.exe"
-#endif
-#else
-#define FFMPEG_MUX "ffmpeg-mux"
+#define FFMPEG_MUX "obs-ffmpeg-mux"
 #endif
 
 static inline bool capturing(struct ffmpeg_muxer *stream)
@@ -241,7 +237,7 @@ static void build_command_line(struct ffmpeg_muxer *stream, struct dstr *cmd,
 		num_tracks++;
 	}
 
-	dstr_init_move_array(cmd, obs_module_file(FFMPEG_MUX));
+	dstr_init_move_array(cmd, os_get_executable_path_ptr(FFMPEG_MUX));
 	dstr_insert_ch(cmd, 0, '\"');
 	dstr_cat(cmd, "\" \"");
 
@@ -369,8 +365,22 @@ static void ffmpeg_mux_stop(void *data, uint64_t ts)
 
 static void signal_failure(struct ffmpeg_muxer *stream)
 {
-	int ret = deactivate(stream);
+	char error[1024];
+	int ret;
 	int code;
+
+	size_t len;
+
+	len = os_process_pipe_read_err(stream->pipe, (uint8_t *)error,
+		sizeof(error) - 1);
+
+	if (len > 0) {
+		error[len] = 0;
+		warn ("ffmpeg-mux: %s", error);
+		obs_output_set_last_error (stream->output, error);
+	}
+
+	ret = deactivate(stream);
 
 	switch (ret) {
 	case FFM_UNSUPPORTED:          code = OBS_OUTPUT_UNSUPPORTED; break;
