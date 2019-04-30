@@ -79,7 +79,7 @@ static void mask_filter_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, SETTING_TYPE,
 			"mask_color_filter.effect");
 	obs_data_set_default_int(settings, SETTING_COLOR, 0xFFFFFF);
-	obs_data_set_default_int(settings, SETTING_OPACITY, 100.0);
+	obs_data_set_default_int(settings, SETTING_OPACITY, 100.0f);
 }
 
 #define IMAGE_FILTER_EXTENSIONS \
@@ -105,6 +105,9 @@ static obs_properties_t *mask_filter_properties(void *data)
 	obs_property_list_add_string(p,
 			obs_module_text("MaskBlendType.MaskAlpha"),
 			"mask_alpha_filter.effect");
+	obs_property_list_add_string(p,
+			obs_module_text("MaskBlendType.MaskBackground"),
+			"mask_background_filter.effect");
 	obs_property_list_add_string(p,
 			obs_module_text("MaskBlendType.BlendMultiply"),
 			"blend_mul_filter.effect");
