@@ -44,7 +44,7 @@ static void mask_filter_update(void *data, obs_data_t *settings)
 	const char *path = obs_data_get_string(settings, SETTING_IMAGE_PATH);
 	const char *effect_file = obs_data_get_string(settings, SETTING_TYPE);
 	uint32_t color = (uint32_t)obs_data_get_int(settings, SETTING_COLOR);
-	int opacity = (int)obs_data_get_int(settings, SETTING_OPACITY);
+	float opacity = (float)obs_data_get_double(settings, SETTING_OPACITY);
 	char *effect_path;
 
 	color &= 0xFFFFFF;
