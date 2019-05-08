@@ -17,7 +17,7 @@ float hueToRGB(float v1, float v2, float vH) {
 	if (vH > 1.0) vH -= 1.0;
 	if ((6.0 * vH) < 1.0) return (v1 + (v2 - v1) * 6.0 * vH);
 	if ((2.0 * vH) < 1.0) return (v2);
-	if ((3.0 * vH) < 2.0) return (v1 + (v2 - v1) * ((2.0 / 3.0) - vH) * 6.0);
+	if ((3.0 * vH) < 2.0) return (v1 + (v2 - v1) * ((0.6666666666666667) - vH) * 6.0);
 	return v1;
 }
 
@@ -40,9 +40,9 @@ float4 HSLtoRGB(float4 hsl) {
 		
 		v1 = 2.0 * hsl.z - v2;
 		
-		rgb.x = hueToRGB(v1, v2, hsl.x + (1.0 / 3.0));
+		rgb.x = hueToRGB(v1, v2, hsl.x + (0.3333333333333333));
 		rgb.y = hueToRGB(v1, v2, hsl.x);
-		rgb.z = hueToRGB(v1, v2, hsl.x - (1.0 / 3.0));
+		rgb.z = hueToRGB(v1, v2, hsl.x - (0.3333333333333333));
 		
 	}
 	
@@ -62,12 +62,12 @@ float4 mainImage(VertData v_in) : TARGET
 		float timeWithOffset = time + Rotation_Offset;
 		float sine = sin(timeWithOffset);
 		float cosine = cos(timeWithOffset);
-		hue = (lPos.x * cosine + lPos.y * sine) / 2.0;
+		hue = (lPos.x * cosine + lPos.y * sine) * 0.5;
 	}
 
 	if (Vertical && (Rotational == false))
 	{
-		hue = (-1 * lPos.y) / 2.0;
+		hue = (-1 * lPos.y) * 0.5;
 	}	
 
 	hue += time;
