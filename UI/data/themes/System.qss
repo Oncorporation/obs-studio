@@ -39,6 +39,10 @@
     qproperty-icon: url(:/res/images/down.svg);
 }
 
+* [themeID="pauseIconSmall"] {
+    qproperty-icon: url(:/res/images/media-pause.svg);
+}
+
 MuteCheckBox {
     outline: none;
 }
@@ -162,6 +166,11 @@ OBSBasicSettings {
     qproperty-advancedIcon: url(:settings/images/settings/advanced.svg);
 }
 
+OBSBasicSettings QListWidget::item {
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
 /* Locked CheckBox */
 
 LockedCheckBox {
@@ -177,7 +186,7 @@ LockedCheckBox::indicator:unchecked {
     image: url(:res/images/unlocked.svg);
 }
 
-/* Visibilty CheckBox */
+/* Visibility CheckBox */
 
 VisibilityCheckBox {
     outline: none;
@@ -190,4 +199,12 @@ VisibilityCheckBox::indicator:checked {
 
 VisibilityCheckBox::indicator:unchecked {
     image: url(:res/images/invisible.svg);
+}
+
+* [themeID="trashIcon"] {
+    qproperty-icon: url(:res/images/trash.svg);
+}
+
+* [themeID="revertIcon"] {
+    qproperty-icon: url(:res/images/revert.svg);
 }

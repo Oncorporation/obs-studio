@@ -30,7 +30,7 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 set(ENABLE_SCRIPTING TRUE CACHE BOOL "Enables scripting")
-set(SCRIPTING_ENABLED OFF CACHE BOOL "Interal global cmake variable" FORCE)
+set(SCRIPTING_ENABLED OFF CACHE BOOL "Internal global cmake variable" FORCE)
 
 include(ObsHelpers)
 include(ObsCpack)
@@ -86,7 +86,7 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)64le")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
-	set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wvla -Wno-unused-function -Werror-implicit-function-declaration -Wno-missing-field-initializers ${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
+	set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wvla -Wno-unused-function -Wno-missing-field-initializers ${CMAKE_CXX_FLAGS} -fno-strict-aliasing")
 	set(CMAKE_C_FLAGS "-Wall -Wextra -Wvla -Wno-unused-function -Werror-implicit-function-declaration -Wno-missing-braces -Wno-missing-field-initializers ${CMAKE_C_FLAGS} -std=gnu99 -fno-strict-aliasing")
 
 	option(USE_LIBC++ "Use libc++ instead of libstdc++" ${APPLE})

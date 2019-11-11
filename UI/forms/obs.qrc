@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/res">
+    <file>images/media-pause.svg</file>
     <file>images/mute.svg</file>
     <file>images/refresh.svg</file>
     <file>images/no_sources.svg</file>
@@ -14,6 +15,8 @@
     <file>images/locked.svg</file>
     <file>images/invisible.svg</file>
     <file>images/visible.svg</file>
+    <file>images/trash.svg</file>
+    <file>images/revert.svg</file>
   </qresource>
   <qresource prefix="/settings">
     <file>images/settings/output.svg</file>

@@ -7,7 +7,7 @@ else()
 	set(FIND_MODE QUIET)
 endif()
 
-if(BROWSER_AVAILABLE_INTERNAL AND WIN32)
+if(BROWSER_AVAILABLE_INTERNAL)
 	add_definitions(-DBROWSER_AVAILABLE)
 endif()
 
@@ -146,10 +146,14 @@ if(BROWSER_AVAILABLE_INTERNAL)
 	list(APPEND obs_PLATFORM_SOURCES
 		obf.c
 		auth-oauth.cpp
+		window-dock-browser.cpp
+		window-extra-browsers.cpp
 		)
 	list(APPEND obs_PLATFORM_HEADERS
 		obf.h
 		auth-oauth.hpp
+		window-dock-browser.hpp
+		window-extra-browsers.hpp
 		)
 
 	if(TWITCH_ENABLED)
@@ -192,6 +196,9 @@ if(MSVC)
 		../deps/libff/libff/ff-util.c
 		PROPERTIES COMPILE_FLAGS -Dinline=__inline
 		)
+	set(obs_PLATFORM_LIBRARIES
+		${obs_PLATFORM_LIBRARIES}
+		w32-pthreads)
 endif()
 
 set(obs_SOURCES
@@ -235,6 +242,8 @@ set(obs_SOURCES
 	slider-ignorewheel.cpp
 	combobox-ignorewheel.cpp
 	spinbox-ignorewheel.cpp
+	record-button.cpp
+	url-push-button.cpp
 	volume-control.cpp
 	adv-audio-control.cpp
 	item-widget-helpers.cpp
@@ -289,6 +298,8 @@ set(obs_HEADERS
 	focus-list.hpp
 	menu-button.hpp
 	mute-checkbox.hpp
+	record-button.hpp
+	url-push-button.hpp
 	volume-control.hpp
 	adv-audio-control.hpp
 	item-widget-helpers.hpp
@@ -322,6 +333,7 @@ set(obs_UI
 	forms/OBSBasicSettings.ui
 	forms/OBSBasicSourceSelect.ui
 	forms/OBSBasicInteraction.ui
+	forms/OBSExtraBrowsers.ui
 	forms/OBSUpdate.ui
 	forms/OBSRemux.ui
 	forms/OBSAbout.ui)
