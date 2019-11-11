@@ -247,7 +247,7 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 		{
 			filter->param_uv_size = param;
 		}
-		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0)
+		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0 || strcmp(info.name, "image_initial") == 0 || strcmp(info.name, "image_before") == 0 || strcmp(info.name, "image_after") == 0 )
 		{
 			// Nothing.
 		}
