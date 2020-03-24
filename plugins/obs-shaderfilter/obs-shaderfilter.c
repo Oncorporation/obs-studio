@@ -247,7 +247,7 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 		{
 			filter->param_uv_size = param;
 		}
-		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0)
+		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0 || strcmp(info.name, "initial_image") == 0 || strcmp(info.name, "before_image") == 0 || strcmp(info.name, "after_image") == 0 )
 		{
 			// Nothing.
 		}
@@ -266,7 +266,7 @@ static const char *shader_filter_get_name(void *unused)
 	UNUSED_PARAMETER(unused);
 	return obs_module_text("ShaderFilter");
 }
-
+ 
 static void *shader_filter_create(obs_data_t *settings, obs_source_t *source)
 {
 	UNUSED_PARAMETER(source);
