@@ -5,14 +5,24 @@ if(MSVC)
 		w32-pthreads)
 endif()
 
+option(ENABLE_FFMPEG_LOGGING "Enables obs-ffmpeg logging" OFF)
+
 find_package(FFmpeg REQUIRED
 	COMPONENTS avcodec avfilter avdevice avutil swscale avformat swresample)
 include_directories(${FFMPEG_INCLUDE_DIRS})
 
+configure_file(
+	"${CMAKE_CURRENT_SOURCE_DIR}/obs-ffmpeg-config.h.in"
+	"${CMAKE_CURRENT_BINARY_DIR}/obs-ffmpeg-config.h")
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+set(obs-ffmpeg_config_HEADERS
+	"${CMAKE_CURRENT_BINARY_DIR}/obs-ffmpeg-config.h")
+
 set(obs-ffmpeg_HEADERS
 	obs-ffmpeg-formats.h
 	obs-ffmpeg-compat.h
-	closest-pixel-format.h)
+	ffmpeg-encoded-output.h)
 
 set(obs-ffmpeg_SOURCES
 	obs-ffmpeg.c
@@ -20,6 +30,7 @@ set(obs-ffmpeg_SOURCES
 	obs-ffmpeg-nvenc.c
 	obs-ffmpeg-output.c
 	obs-ffmpeg-mux.c
+	ffmpeg-encoded-output.c
 	obs-ffmpeg-source.c)
 
 if(UNIX AND NOT APPLE)
@@ -27,6 +38,11 @@ if(UNIX AND NOT APPLE)
 		obs-ffmpeg-vaapi.c)
 	LIST(APPEND obs-ffmpeg_PLATFORM_DEPS
 		${LIBVA_LBRARIES})
+endif()
+
+if(ENABLE_FFMPEG_LOGGING)
+	list(APPEND obs-ffmpeg_SOURCES
+		obs-ffmpeg-logging.c)
 endif()
 
 if(WIN32)
@@ -38,6 +54,7 @@ if(WIN32)
 endif()
 
 add_library(obs-ffmpeg MODULE
+	${obs-ffmpeg_config_HEADERS}
 	${obs-ffmpeg_HEADERS}
 	${obs-ffmpeg_SOURCES})
 target_link_libraries(obs-ffmpeg

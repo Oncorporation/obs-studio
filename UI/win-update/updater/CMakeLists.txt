@@ -23,11 +23,13 @@ set(updater_HEADERS
 	)
 set(updater_SOURCES
 	../win-update-helpers.cpp
+	init-hook-files.c
 	updater.cpp
 	patch.cpp
 	http.cpp
 	hash.cpp
 	updater.rc
+	updater.manifest
 	)
 
 add_definitions(-DNOMINMAX -DUNICODE -D_UNICODE)

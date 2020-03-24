@@ -6,19 +6,19 @@
 #include "../../UI/properties-view.hpp"
 
 class DecklinkOutputUI : public QDialog {
-Q_OBJECT
+	Q_OBJECT
 private:
 	OBSPropertiesView *propertiesView;
 	OBSPropertiesView *previewPropertiesView;
 
 public slots:
-	void StartOutput();
-	void StopOutput();
+	void on_outputButton_clicked();
 	void PropertiesChanged();
+	void OutputStateChanged(bool);
 
-	void StartPreviewOutput();
-	void StopPreviewOutput();
+	void on_previewOutputButton_clicked();
 	void PreviewPropertiesChanged();
+	void PreviewOutputStateChanged(bool);
 
 public:
 	std::unique_ptr<Ui_Output> ui;

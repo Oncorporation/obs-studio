@@ -1,5 +1,7 @@
 #include <obs-module.h>
 
+/* clang-format off */
+
 #define SETTING_LUMA_MAX           "luma_max"
 #define SETTING_LUMA_MIN           "luma_min"
 #define SETTING_LUMA_MAX_SMOOTH    "luma_max_smooth"
@@ -18,9 +20,9 @@
 
 
 struct luma_key_filter_data {
-	obs_source_t    *context;
+	obs_source_t *context;
 
-	gs_effect_t     *effect;
+	gs_effect_t *effect;
 
 	gs_eparam_t     *luma_max_param;
 	gs_eparam_t     *luma_min_param;
@@ -90,10 +92,10 @@ static void *luma_key_create(obs_data_t *settings, obs_source_t *context)
 
 	filter->effect = gs_effect_create_from_file(effect_path, NULL);
 	if (filter->effect) {
-		filter->luma_max_param = gs_effect_get_param_by_name(
-			filter->effect, "lumaMax");
-		filter->luma_min_param = gs_effect_get_param_by_name(
-			filter->effect, "lumaMin");
+		filter->luma_max_param =
+			gs_effect_get_param_by_name(filter->effect, "lumaMax");
+		filter->luma_min_param =
+			gs_effect_get_param_by_name(filter->effect, "lumaMin");
 		filter->luma_max_smooth_param = gs_effect_get_param_by_name(
 			filter->effect, "lumaMaxSmooth");
 		filter->luma_min_smooth_param = gs_effect_get_param_by_name(
@@ -144,12 +146,12 @@ static obs_properties_t *luma_key_properties(void *data)
 {
 	obs_properties_t *props = obs_properties_create();
 
-	obs_properties_add_float_slider(props, SETTING_LUMA_MAX,
-		TEXT_LUMA_MAX, 0, 1, 0.01);
+	obs_properties_add_float_slider(props, SETTING_LUMA_MAX, TEXT_LUMA_MAX,
+					0, 1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX_SMOOTH,
-		TEXT_LUMA_MAX_SMOOTH, 0, 1, 0.01);
-	obs_properties_add_float_slider(props, SETTING_LUMA_MIN,
-		TEXT_LUMA_MIN, 0, 1, 0.01);
+					TEXT_LUMA_MAX_SMOOTH, 0, 1, 0.01);
+	obs_properties_add_float_slider(props, SETTING_LUMA_MIN, TEXT_LUMA_MIN,
+					0, 1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN_SMOOTH,
 		TEXT_LUMA_MIN_SMOOTH, 0, 1, 0.01);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
@@ -171,7 +173,6 @@ static void luma_key_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, SETTING_INVERT_COLOR, false);
 	obs_data_set_default_bool(settings, SETTING_INVERT_LUMA, false);
 }
-
 
 struct obs_source_info luma_key_filter = {
 	.id = "luma_key_filter",

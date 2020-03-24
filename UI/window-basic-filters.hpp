@@ -74,6 +74,8 @@ private:
 
 	int noPreviewMargin;
 
+	bool editActive = false;
+
 private slots:
 	void AddFilter(OBSSource filter);
 	void RemoveFilter(OBSSource filter);
@@ -105,9 +107,9 @@ private slots:
 	void on_actionMoveDown_triggered();
 
 	void AsyncFilterNameEdited(QWidget *editor,
-			QAbstractItemDelegate::EndEditHint endHint);
+				   QAbstractItemDelegate::EndEditHint endHint);
 	void EffectFilterNameEdited(QWidget *editor,
-			QAbstractItemDelegate::EndEditHint endHint);
+				    QAbstractItemDelegate::EndEditHint endHint);
 
 public:
 	OBSBasicFilters(QWidget *parent, OBSSource source_);

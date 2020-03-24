@@ -36,8 +36,11 @@ LIBVLC_AUDIO_SET_FORMAT_CALLBACKS libvlc_audio_set_format_callbacks_;
 LIBVLC_MEDIA_PLAYER_PLAY libvlc_media_player_play_;
 LIBVLC_MEDIA_PLAYER_STOP libvlc_media_player_stop_;
 LIBVLC_MEDIA_PLAYER_GET_TIME libvlc_media_player_get_time_;
+LIBVLC_MEDIA_PLAYER_SET_TIME libvlc_media_player_set_time_;
 LIBVLC_VIDEO_GET_SIZE libvlc_video_get_size_;
 LIBVLC_MEDIA_PLAYER_EVENT_MANAGER libvlc_media_player_event_manager_;
+LIBVLC_MEDIA_PLAYER_GET_STATE libvlc_media_player_get_state_;
+LIBVLC_MEDIA_PLAYER_GET_LENGTH libvlc_media_player_get_length_;
 
 /* libvlc media list */
 LIBVLC_MEDIA_LIST_NEW libvlc_media_list_new_;
@@ -53,10 +56,12 @@ LIBVLC_MEDIA_LIST_PLAYER_RELEASE libvlc_media_list_player_release_;
 LIBVLC_MEDIA_LIST_PLAYER_PLAY libvlc_media_list_player_play_;
 LIBVLC_MEDIA_LIST_PLAYER_PAUSE libvlc_media_list_player_pause_;
 LIBVLC_MEDIA_LIST_PLAYER_STOP libvlc_media_list_player_stop_;
-LIBVLC_MEDIA_LIST_PLAYER_SET_MEDIA_PLAYER libvlc_media_list_player_set_media_player_;
+LIBVLC_MEDIA_LIST_PLAYER_SET_MEDIA_PLAYER
+libvlc_media_list_player_set_media_player_;
 LIBVLC_MEDIA_LIST_PLAYER_SET_MEDIA_LIST libvlc_media_list_player_set_media_list_;
 LIBVLC_MEDIA_LIST_PLAYER_EVENT_MANAGER libvlc_media_list_player_event_manager_;
-LIBVLC_MEDIA_LIST_PLAYER_SET_PLAYBACK_MODE libvlc_media_list_player_set_playback_mode_;
+LIBVLC_MEDIA_LIST_PLAYER_SET_PLAYBACK_MODE
+libvlc_media_list_player_set_playback_mode_;
 LIBVLC_MEDIA_LIST_PLAYER_NEXT libvlc_media_list_player_next_;
 LIBVLC_MEDIA_LIST_PLAYER_PREVIOUS libvlc_media_list_player_previous_;
 
@@ -70,14 +75,16 @@ uint64_t time_start = 0;
 
 static bool load_vlc_funcs(void)
 {
-#define LOAD_VLC_FUNC(func) \
-	do { \
-		func ## _ = os_dlsym(libvlc_module, #func); \
-		if (!func ## _) { \
-			blog(LOG_WARNING, "Could not func VLC function %s, " \
-					"VLC loading failed", #func); \
-			return false; \
-		} \
+#define LOAD_VLC_FUNC(func)                                     \
+	do {                                                    \
+		func##_ = os_dlsym(libvlc_module, #func);       \
+		if (!func##_) {                                 \
+			blog(LOG_WARNING,                       \
+			     "Could not func VLC function %s, " \
+			     "VLC loading failed",              \
+			     #func);                            \
+			return false;                           \
+		}                                               \
 	} while (false)
 
 	/* libvlc core */
@@ -104,8 +111,11 @@ static bool load_vlc_funcs(void)
 	LOAD_VLC_FUNC(libvlc_media_player_play);
 	LOAD_VLC_FUNC(libvlc_media_player_stop);
 	LOAD_VLC_FUNC(libvlc_media_player_get_time);
+	LOAD_VLC_FUNC(libvlc_media_player_set_time);
 	LOAD_VLC_FUNC(libvlc_video_get_size);
 	LOAD_VLC_FUNC(libvlc_media_player_event_manager);
+	LOAD_VLC_FUNC(libvlc_media_player_get_state);
+	LOAD_VLC_FUNC(libvlc_media_player_get_length);
 
 	/* libvlc media list */
 	LOAD_VLC_FUNC(libvlc_media_list_new);
@@ -133,23 +143,22 @@ static bool load_vlc_funcs(void)
 static bool load_libvlc_module(void)
 {
 #ifdef _WIN32
-	char    *path_utf8 = NULL;
+	char *path_utf8 = NULL;
 	wchar_t path[1024];
 	LSTATUS status;
-	DWORD   size;
-	HKEY    key;
+	DWORD size;
+	HKEY key;
 
 	memset(path, 0, 1024 * sizeof(wchar_t));
 
-	status = RegOpenKeyW(HKEY_LOCAL_MACHINE,
-			L"SOFTWARE\\VideoLAN\\VLC",
-			&key);
+	status = RegOpenKeyW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\VideoLAN\\VLC",
+			     &key);
 	if (status != ERROR_SUCCESS)
 		return false;
 
 	size = 1024;
-	status = RegQueryValueExW(key, L"InstallDir", NULL, NULL,
-			(LPBYTE)path, &size);
+	status = RegQueryValueExW(key, L"InstallDir", NULL, NULL, (LPBYTE)path,
+				  &size);
 	if (status == ERROR_SUCCESS) {
 		wcscat(path, L"\\libvlc.dll");
 		os_wcs_to_utf8_ptr(path, 0, &path_utf8);
@@ -201,7 +210,7 @@ bool obs_module_load(void)
 {
 	if (!load_libvlc_module()) {
 		blog(LOG_INFO, "Couldn't find VLC installation, VLC video "
-				"source disabled");
+			       "source disabled");
 		return true;
 	}
 
