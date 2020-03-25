@@ -247,9 +247,15 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 		{
 			filter->param_uv_size = param;
 		}
-		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0 || strcmp(info.name, "initial_image") == 0 || strcmp(info.name, "before_image") == 0 || strcmp(info.name, "after_image") == 0 )
+		else if (strcmp(info.name, "ViewProj") == 0 || strcmp(info.name, "image") == 0 )
 		{
 			// Nothing.
+		} else if (strcmp(info.name, "initial_image") == 0 ||
+			strcmp(info.name, "before_image") == 0 ||
+			strcmp(info.name, "after_image") == 0 ||
+			astrcmp_n(info.name, "local_", 6) == 0)
+		{
+			// Nothing - these are local variables that do not need GUI elements.
 		}
 		else
 		{			
