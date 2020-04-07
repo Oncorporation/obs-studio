@@ -35,6 +35,7 @@ OBSLogReply::OBSLogReply(QWidget *parent, const QString &url, const bool crash)
 	}
 
 	installEventFilter(CreateShortcutFilter());
+	UNUSED_PARAMETER(crash);
 }
 
 void OBSLogReply::on_copyURL_clicked()
