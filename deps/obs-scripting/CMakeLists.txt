@@ -7,9 +7,19 @@ endif()
 
 project(obs-scripting)
 
+if(POLICY CMP0068)
+	# RPATH settings on macOS do not affect install_name.
+	cmake_policy(SET CMP0068 NEW)
+endif()
+
 if(MSVC)
 	set(obs-scripting_PLATFORM_DEPS
 		w32-pthreads)
+endif()
+
+if(APPLE)
+	set(obs-scripting_PLATFORM_DEPS
+		objc)
 endif()
 
 option(DISABLE_LUA "Disable Lua scripting support" OFF)
@@ -147,6 +157,13 @@ set(obs-scripting_HEADERS
 	obs-scripting-callback.h
 	cstrcache.h
 	)
+
+if(WIN32)
+	set(MODULE_DESCRIPTION "OBS Studio scripting module")
+	configure_file(${CMAKE_SOURCE_DIR}/cmake/winrc/obs-module.rc.in obs-scripting.rc)
+	list(APPEND obs-scripting_SOURCES
+		obs-scripting.rc)
+endif()
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/swig)
 

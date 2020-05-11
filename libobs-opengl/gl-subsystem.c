@@ -245,7 +245,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 	gl_enable(GL_CULL_FACE);
 	gl_gen_vertex_arrays(1, &device->empty_vao);
 
-	device_leave_context(device);
+	gl_clear_context(device);
 	device->cur_swap = NULL;
 
 #ifdef _WIN32
@@ -347,24 +347,6 @@ uint32_t device_get_height(const gs_device_t *device)
 		blog(LOG_WARNING, "device_get_height (GL): No active swap");
 		return 0;
 	}
-}
-
-gs_texture_t *device_voltexture_create(gs_device_t *device, uint32_t width,
-				       uint32_t height, uint32_t depth,
-				       enum gs_color_format color_format,
-				       uint32_t levels, const uint8_t **data,
-				       uint32_t flags)
-{
-	/* TODO */
-	UNUSED_PARAMETER(device);
-	UNUSED_PARAMETER(width);
-	UNUSED_PARAMETER(height);
-	UNUSED_PARAMETER(depth);
-	UNUSED_PARAMETER(color_format);
-	UNUSED_PARAMETER(levels);
-	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(flags);
-	return NULL;
 }
 
 gs_samplerstate_t *
@@ -1282,7 +1264,6 @@ void device_set_viewport(gs_device_t *device, int x, int y, int width,
 			 int height)
 {
 	uint32_t base_height = 0;
-	int gl_y = 0;
 
 	/* GL uses bottom-up coordinates for viewports.  We want top-down */
 	if (device->cur_render_target) {
@@ -1292,7 +1273,8 @@ void device_set_viewport(gs_device_t *device, int x, int y, int width,
 		gl_getclientsize(device->cur_swap, &dw, &base_height);
 	}
 
-	if (base_height)
+	GLint gl_y = y;
+	if (base_height && !device->cur_fbo)
 		gl_y = base_height - y - height;
 
 	glViewport(x, gl_y, width, height);
@@ -1423,12 +1405,6 @@ void gs_swapchain_destroy(gs_swapchain_t *swapchain)
 
 	gl_windowinfo_destroy(swapchain->wi);
 	bfree(swapchain);
-}
-
-void gs_voltexture_destroy(gs_texture_t *voltex)
-{
-	/* TODO */
-	UNUSED_PARAMETER(voltex);
 }
 
 uint32_t gs_voltexture_get_width(const gs_texture_t *voltex)
