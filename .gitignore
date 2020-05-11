@@ -102,3 +102,4 @@ tags
 /CMakeLists.txt.bak
 /out/build/x64-Debug
 /out/install/x64-Debug
+/.github/workflows
