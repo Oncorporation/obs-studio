@@ -10,7 +10,43 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "-v",
       "ctestCommandArgs": "",
-      "variables": []
+      "variables": [
+        {
+          "name": "FFMPEG_avcodec_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avcodec.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_avdevice_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avdevice.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_avfilter_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avfilter.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_avformat_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avformat.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_avutil_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avutil.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_swresample_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/swresample.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_swscale_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/swscale.lib",
+          "type": "FILEPATH"
+        }
+      ]
     },
     {
       "name": "x86-Debug",
