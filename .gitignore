@@ -97,4 +97,9 @@ tags
 .DS_Store
 */.DS_Store
 */**/.DS_Store
-/out
+/CMakeLists.new.txt.bak
+/CMakeLists.txt.bak
+/out/build/x64-Debug
+/out/install/x64-Debug
+/.github/workflows
+/out/build

@@ -38,6 +38,7 @@ struct mask_filter_data {
 	gs_image_file_t image;
 	struct vec4 color;
 	bool lock_aspect;
+	float opacity;	
 };
 
 static time_t get_modified_timestamp(const char *filename)
@@ -87,7 +88,7 @@ static void mask_filter_update(void *data, obs_data_t *settings)
 	const char *path = obs_data_get_string(settings, SETTING_IMAGE_PATH);
 	const char *effect_file = obs_data_get_string(settings, SETTING_TYPE);
 	uint32_t color = (uint32_t)obs_data_get_int(settings, SETTING_COLOR);
-	int opacity = (int)obs_data_get_int(settings, SETTING_OPACITY);
+	float opacity = (float)obs_data_get_double(settings, SETTING_OPACITY);
 	char *effect_path;
 
 	if (filter->image_file)
@@ -98,10 +99,24 @@ static void mask_filter_update(void *data, obs_data_t *settings)
 	color |= (uint32_t)(((double)opacity) * 2.55) << 24;
 
 	vec4_from_rgba(&filter->color, color);
+	filter->opacity = opacity;
+
+	obs_enter_graphics();
+	gs_image_file_free(&filter->image);
+	obs_leave_graphics();
+
+	gs_image_file_init(&filter->image, path);
+
 	mask_filter_image_load(filter);
 	filter->lock_aspect = !obs_data_get_bool(settings, SETTING_STRETCH);
 
+
 	obs_enter_graphics();
+
+	gs_image_file_init_texture(&filter->image);
+
+	filter->target = filter->image.texture;
+	filter->lock_aspect = !obs_data_get_bool(settings, SETTING_STRETCH);
 
 	effect_path = obs_module_file(effect_file);
 	gs_effect_destroy(filter->effect);
@@ -116,7 +131,7 @@ static void mask_filter_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, SETTING_TYPE,
 				    "mask_color_filter.effect");
 	obs_data_set_default_int(settings, SETTING_COLOR, 0xFFFFFF);
-	obs_data_set_default_int(settings, SETTING_OPACITY, 100);
+	obs_data_set_default_int(settings, SETTING_OPACITY, 100.0);
 }
 
 #define IMAGE_FILTER_EXTENSIONS " (*.bmp *.jpg *.jpeg *.tga *.gif *.png)"
@@ -155,8 +170,8 @@ static obs_properties_t *mask_filter_properties(void *data)
 	obs_properties_add_path(props, SETTING_IMAGE_PATH, TEXT_IMAGE_PATH,
 				OBS_PATH_FILE, filter_str.array, NULL);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
-	obs_properties_add_int_slider(props, SETTING_OPACITY, TEXT_OPACITY, 0,
-				      100, 1);
+	obs_properties_add_float_slider(props, SETTING_OPACITY, TEXT_OPACITY, 0, 
+						100, 0.05);
 	obs_properties_add_bool(props, SETTING_STRETCH, TEXT_STRETCH);
 
 	dstr_free(&filter_str);
@@ -272,6 +287,9 @@ static void mask_filter_render(void *data, gs_effect_t *effect)
 
 	param = gs_effect_get_param_by_name(filter->effect, "color");
 	gs_effect_set_vec4(param, &filter->color);
+
+	param = gs_effect_get_param_by_name(filter->effect, "opacity");
+	gs_effect_set_float(param, filter->opacity * 0.01);
 
 	param = gs_effect_get_param_by_name(filter->effect, "mul_val");
 	gs_effect_set_vec2(param, &mul_val);

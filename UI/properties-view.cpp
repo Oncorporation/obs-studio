@@ -114,8 +114,6 @@ void OBSPropertiesView::RefreshProperties()
 	widget->setLayout(layout);
 
 	QSizePolicy mainPolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-	QSizePolicy policy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-	//widget->setSizePolicy(policy);
 
 	layout->setLabelAlignment(Qt::AlignRight);
 
@@ -1694,7 +1692,7 @@ bool WidgetInfo::ColorChanged(const char *setting)
 	 * other open QDialogs on exit, and
 	 * https://bugreports.qt-project.org/browse/QTBUG-34532
 	 */
-#ifdef __APPLE__
+#ifndef _WIN32
 	options |= QColorDialog::DontUseNativeDialog;
 #endif
 
@@ -1728,7 +1726,7 @@ bool WidgetInfo::FontChanged(const char *setting)
 
 	QFontDialog::FontDialogOptions options;
 
-#ifdef __APPLE__
+#ifndef _WIN32
 	options = QFontDialog::DontUseNativeDialog;
 #endif
 

@@ -18,9 +18,13 @@ try {
 	return winrt::Windows::Foundation::Metadata::ApiInformation::
 		IsApiContractPresent(L"Windows.Foundation.UniversalApiContract",
 				     8);
-} catch (winrt::hresult_error &err) {
+} catch (const winrt::hresult_error &err) {
 	blog(LOG_ERROR, "winrt_capture_supported (0x%08X): %ls", err.to_abi(),
 	     err.message().c_str());
+	return false;
+} catch (...) {
+	blog(LOG_ERROR, "winrt_capture_supported (0x%08X)",
+	     winrt::to_hresult());
 	return false;
 }
 
@@ -34,9 +38,13 @@ try {
 #else
 	return false;
 #endif
-} catch (winrt::hresult_error &err) {
+} catch (const winrt::hresult_error &err) {
 	blog(LOG_ERROR, "winrt_capture_cursor_toggle_supported (0x%08X): %ls",
 	     err.to_abi(), err.message().c_str());
+	return false;
+} catch (...) {
+	blog(LOG_ERROR, "winrt_capture_cursor_toggle_supported (0x%08X)",
+	     winrt::to_hresult());
 	return false;
 }
 
@@ -115,6 +123,8 @@ struct winrt_capture {
 	winrt::Windows::Graphics::Capture::GraphicsCaptureSession session{
 		nullptr};
 	winrt::Windows::Graphics::SizeInt32 last_size;
+	winrt::Windows::Graphics::Capture::GraphicsCaptureItem::Closed_revoker
+		closed;
 	winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::
 		FrameArrived_revoker frame_arrived;
 
@@ -124,6 +134,7 @@ struct winrt_capture {
 	bool client_box_available;
 
 	bool thread_changed;
+	bool active;
 	struct winrt_capture *next;
 
 	void draw_cursor()
@@ -176,6 +187,14 @@ struct winrt_capture {
 		}
 
 		DestroyIcon(icon);
+	}
+
+	void
+	on_closed(winrt::Windows::Graphics::Capture::GraphicsCaptureItem const
+			  &sender,
+		  winrt::Windows::Foundation::IInspectable const &)
+	{
+		active = FALSE;
 	}
 
 	void on_frame_arrived(winrt::Windows::Graphics::Capture::
@@ -353,6 +372,10 @@ try {
 		blog(LOG_ERROR, "CreateForWindow (0x%08X): %ls", err.to_abi(),
 		     err.message().c_str());
 		return nullptr;
+	} catch (...) {
+		blog(LOG_ERROR, "CreateForWindow (0x%08X)",
+		     winrt::to_hresult());
+		return nullptr;
 	}
 
 	const winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice
@@ -390,9 +413,12 @@ try {
 	capture->frame_pool = frame_pool;
 	capture->session = session;
 	capture->last_size = size;
+	capture->closed = item.Closed(winrt::auto_revoke,
+				      {capture, &winrt_capture::on_closed});
 	capture->frame_arrived = frame_pool.FrameArrived(
 		winrt::auto_revoke,
 		{capture, &winrt_capture::on_frame_arrived});
+	capture->active = TRUE;
 	capture->next = capture_list;
 	capture_list = capture;
 
@@ -406,9 +432,12 @@ try {
 
 	return capture;
 
-} catch (winrt::hresult_error &err) {
+} catch (const winrt::hresult_error &err) {
 	blog(LOG_ERROR, "winrt_capture_init (0x%08X): %ls", err.to_abi(),
 	     err.message().c_str());
+	return nullptr;
+} catch (...) {
+	blog(LOG_ERROR, "winrt_capture_init (0x%08X)", winrt::to_hresult());
 	return nullptr;
 }
 
@@ -434,6 +463,7 @@ extern "C" EXPORT void winrt_capture_free(struct winrt_capture *capture)
 		obs_leave_graphics();
 
 		capture->frame_arrived.revoke();
+		capture->closed.revoke();
 		capture->frame_pool.Close();
 		capture->session.Close();
 
@@ -461,6 +491,11 @@ static void draw_texture(struct winrt_capture *capture, gs_effect_t *effect)
 	gs_technique_end(tech);
 }
 
+extern "C" EXPORT BOOL winrt_capture_active(const struct winrt_capture *capture)
+{
+	return capture->active;
+}
+
 extern "C" EXPORT void winrt_capture_show_cursor(struct winrt_capture *capture,
 						 BOOL visible)
 {
@@ -470,7 +505,7 @@ extern "C" EXPORT void winrt_capture_show_cursor(struct winrt_capture *capture,
 extern "C" EXPORT void winrt_capture_render(struct winrt_capture *capture,
 					    gs_effect_t *effect)
 {
-	if (capture && capture->texture_written) {
+	if (capture->texture_written) {
 		if (!initialized_tls) {
 			struct winrt_capture *current = capture_list;
 			while (current) {
