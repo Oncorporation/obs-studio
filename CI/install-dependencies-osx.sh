@@ -10,9 +10,11 @@ set -e
 # Echo all commands before executing
 set -v
 
-if [ -v "$TRAVIS" ]; then
+if [[ $TRAVIS ]]; then
   git fetch --unshallow
 fi
+
+git fetch origin --tags
 
 # Leave obs-studio folder
 cd ../
@@ -26,8 +28,12 @@ sudo installer -pkg ./Packages.pkg -target /
 brew update
 
 #Base OBS Deps and ccache
-brew install jack speexdsp ccache swig mbedtls
-brew install https://gist.githubusercontent.com/DDRBoxman/b3956fab6073335a4bf151db0dcbd4ad/raw/ed1342a8a86793ea8c10d8b4d712a654da121ace/qt.rb
+brew install jack speexdsp ccache mbedtls clang-format freetype fdk-aac
+brew install https://gist.githubusercontent.com/DDRBoxman/9c7a2b08933166f4b61ed9a44b242609/raw/ef4de6c587c6bd7f50210eccd5bd51ff08e6de13/qt.rb
+brew unlink swig
+brew install https://gist.githubusercontent.com/DDRBoxman/4cada55c51803a2f963fa40ce55c9d3e/raw/572c67e908bfbc1bcb8c476ea77ea3935133f5b5/swig.rb
+
+pip install dmgbuild
 
 export PATH=/usr/local/opt/ccache/libexec:$PATH
 ccache -s || echo "CCache is not available."
@@ -56,6 +62,8 @@ tar -xf ./cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2
 cd ./cef_binary_${CEF_BUILD_VERSION}_macosx64
 # remove a broken test
 sed -i '.orig' '/add_subdirectory(tests\/ceftests)/d' ./CMakeLists.txt
+# target 10.11
+sed -i '.orig' s/\"10.9\"/\"10.11\"/ ./cmake/cef_variables.cmake
 mkdir build
 cd ./build
 cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++" -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.11 ..

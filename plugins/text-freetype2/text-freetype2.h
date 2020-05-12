@@ -30,8 +30,8 @@ struct glyph_info {
 };
 
 struct ft2_source {
-	char     *font_name;
-	char     *font_style;
+	char *font_name;
+	char *font_style;
 	uint16_t font_size;
 	uint32_t font_flags;
 
@@ -54,7 +54,7 @@ struct ft2_source {
 
 	struct glyph_info *cacheglyphs[num_cache_slots];
 
-	FT_Face	font_face;
+	FT_Face font_face;
 
 	uint8_t *texbuf;
 	gs_vertbuffer_t *vbuf;
@@ -69,7 +69,8 @@ struct ft2_source {
 
 extern FT_Library ft2_lib;
 
-static void *ft2_source_create(obs_data_t *settings, obs_source_t *source);
+static void *ft2_source_create_v1(obs_data_t *settings, obs_source_t *source);
+static void *ft2_source_create_v2(obs_data_t *settings, obs_source_t *source);
 static void ft2_source_destroy(void *data);
 static void ft2_source_update(void *data, obs_data_t *settings);
 static void ft2_source_render(void *data, gs_effect_t *effect);
