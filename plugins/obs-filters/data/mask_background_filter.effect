@@ -37,9 +37,11 @@ float4 PSColorMaskRGBA(VertDataOut v_in) : TARGET
 {
 	float Tolerance = opacity;
 	float4 rgba = image.Sample(textureSampler, v_in.uv);
+	//float intensity_image = dot(rgba, float3(0.299, 0.587, 0.114));
 
 	float4 targetRGB = target.Sample(textureSampler, v_in.uv2) * color;
 	float4 shadowRGB = targetRGB * targetRGB;
+	//float intensity_background = dot(targetRGB * color, float3(0.299, 0.587, 0.114));
 
 	if ((abs(targetRGB.r - rgba.r) <= Tolerance &&
 		abs(targetRGB.g - rgba.g) <= Tolerance &&
@@ -47,6 +49,7 @@ float4 PSColorMaskRGBA(VertDataOut v_in) : TARGET
 		|| (abs(shadowRGB.r - rgba.r) <= Tolerance &&
 			abs(shadowRGB.g - rgba.g) <= Tolerance &&
 			abs(shadowRGB.b - rgba.b) <= Tolerance))
+	//if (abs(intensity_background - intensity_image) <= Tolerance)
 	{
 		rgba.rgba = 0;
 	}
