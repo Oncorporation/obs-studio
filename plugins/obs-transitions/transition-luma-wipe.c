@@ -2,13 +2,19 @@
 #include <graphics/image-file.h>
 #include <util/dstr.h>
 
+/* clang-format off */
+
 #define S_LUMA_IMG              "luma_image"
 #define S_LUMA_INV              "luma_invert"
 #define S_LUMA_SOFT             "luma_softness"
+#define S_LUMA_COLOR		"luma_color"
 
 #define T_LUMA_IMG              obs_module_text("LumaWipe.Image")
 #define T_LUMA_INV              obs_module_text("LumaWipe.Invert")
 #define T_LUMA_SOFT             obs_module_text("LumaWipe.Softness")
+#define T_LUMA_COLOR            obs_module_text("LumaWipe.Color")
+
+/* clang-format on */
 
 struct luma_wipe_info {
 	obs_source_t *source;
@@ -20,10 +26,12 @@ struct luma_wipe_info {
 	gs_eparam_t *ep_progress;
 	gs_eparam_t *ep_invert;
 	gs_eparam_t *ep_softness;
+	gs_eparam_t *ep_l_color;
 
 	gs_image_file_t luma_image;
-	bool  invert_luma;
+	bool invert_luma;
 	float softness;
+	struct vec4 l_color;
 	obs_data_t *wipes_list;
 };
 
@@ -35,11 +43,16 @@ static const char *luma_wipe_get_name(void *type_data)
 
 static void luma_wipe_update(void *data, obs_data_t *settings)
 {
-	struct luma_wipe_info *lwipe = data;
+	struct luma_wipe_info *lwipe = data;	
 
 	const char *name = obs_data_get_string(settings, S_LUMA_IMG);
 	lwipe->invert_luma = obs_data_get_bool(settings, S_LUMA_INV);
 	lwipe->softness = (float)obs_data_get_double(settings, S_LUMA_SOFT);
+	uint32_t color = (uint32_t)obs_data_get_int(settings, S_LUMA_COLOR);
+
+	color |= 0xFF000000;
+
+	vec4_from_rgba(&lwipe->l_color, color);	
 
 	struct dstr path = {0};
 
@@ -94,14 +107,15 @@ static void *luma_wipe_create(obs_data_t *settings, obs_source_t *source)
 
 	lwipe = bzalloc(sizeof(*lwipe));
 
-	lwipe->effect      = effect;
-	lwipe->ep_a_tex    = gs_effect_get_param_by_name(effect, "a_tex");
-	lwipe->ep_b_tex    = gs_effect_get_param_by_name(effect, "b_tex");
-	lwipe->ep_l_tex    = gs_effect_get_param_by_name(effect, "l_tex");
+	lwipe->effect = effect;
+	lwipe->ep_a_tex = gs_effect_get_param_by_name(effect, "a_tex");
+	lwipe->ep_b_tex = gs_effect_get_param_by_name(effect, "b_tex");
+	lwipe->ep_l_tex = gs_effect_get_param_by_name(effect, "l_tex");
+	lwipe->ep_l_color = gs_effect_get_param_by_name(effect, "l_color");
 	lwipe->ep_progress = gs_effect_get_param_by_name(effect, "progress");
-	lwipe->ep_invert   = gs_effect_get_param_by_name(effect, "invert");
+	lwipe->ep_invert = gs_effect_get_param_by_name(effect, "invert");
 	lwipe->ep_softness = gs_effect_get_param_by_name(effect, "softness");
-	lwipe->source      = source;
+	lwipe->source = source;
 
 	luma_wipe_get_list(lwipe);
 
@@ -131,7 +145,8 @@ static obs_properties_t *luma_wipe_properties(void *data)
 	obs_property_t *p;
 
 	p = obs_properties_add_list(props, S_LUMA_IMG, T_LUMA_IMG,
-			OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+				    OBS_COMBO_TYPE_LIST,
+				    OBS_COMBO_FORMAT_STRING);
 
 	obs_data_item_t *item = obs_data_first(lwipe->wipes_list);
 
@@ -141,8 +156,10 @@ static obs_properties_t *luma_wipe_properties(void *data)
 		obs_property_list_add_string(p, obs_module_text(name), path);
 	}
 
-	obs_properties_add_float(props, S_LUMA_SOFT, T_LUMA_SOFT, 0.0, 1.0, 0.05);
+	obs_properties_add_float(props, S_LUMA_SOFT, T_LUMA_SOFT, 0.01, 1.0,
+				 0.05);
 	obs_properties_add_bool(props, S_LUMA_INV, T_LUMA_INV);
+	obs_properties_add_color(props, S_LUMA_COLOR, T_LUMA_COLOR);
 
 	return props;
 }
@@ -152,6 +169,7 @@ static void luma_wipe_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, S_LUMA_IMG, "linear-h.png");
 	obs_data_set_default_double(settings, S_LUMA_SOFT, 0.03);
 	obs_data_set_default_bool(settings, S_LUMA_INV, false);
+	obs_data_set_default_int(settings, S_LUMA_COLOR, 0xFF000000);
 }
 
 static void luma_wipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
@@ -166,6 +184,8 @@ static void luma_wipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 	gs_effect_set_bool(lwipe->ep_invert, lwipe->invert_luma);
 	gs_effect_set_float(lwipe->ep_softness, lwipe->softness);
+	
+	gs_effect_set_vec4(lwipe->ep_l_color, &lwipe->l_color);
 
 	while (gs_effect_loop(lwipe->effect, "LumaWipe"))
 		gs_draw_sprite(NULL, 0, cx, cy);
@@ -191,23 +211,23 @@ static float mix_b(void *data, float t)
 }
 
 bool luma_wipe_audio_render(void *data, uint64_t *ts_out,
-		struct obs_source_audio_mix *audio, uint32_t mixers,
-		size_t channels, size_t sample_rate)
+			    struct obs_source_audio_mix *audio, uint32_t mixers,
+			    size_t channels, size_t sample_rate)
 {
 	struct luma_wipe_info *lwipe = data;
 	return obs_transition_audio_render(lwipe->source, ts_out, audio, mixers,
-				channels, sample_rate, mix_a, mix_b);
+					   channels, sample_rate, mix_a, mix_b);
 }
 
 struct obs_source_info luma_wipe_transition = {
-	.id                             = "wipe_transition",
-	.type                           = OBS_SOURCE_TYPE_TRANSITION,
-	.get_name                       = luma_wipe_get_name,
-	.create                         = luma_wipe_create,
-	.destroy                        = luma_wipe_destroy,
-	.update	                        = luma_wipe_update,
-	.video_render                   = luma_wipe_video_render,
-	.audio_render                   = luma_wipe_audio_render,
-	.get_properties                 = luma_wipe_properties,
-	.get_defaults                   = luma_wipe_defaults
+	.id = "wipe_transition",
+	.type = OBS_SOURCE_TYPE_TRANSITION,
+	.get_name = luma_wipe_get_name,
+	.create = luma_wipe_create,
+	.destroy = luma_wipe_destroy,
+	.update = luma_wipe_update,
+	.video_render = luma_wipe_video_render,
+	.audio_render = luma_wipe_audio_render,
+	.get_properties = luma_wipe_properties,
+	.get_defaults = luma_wipe_defaults,
 };

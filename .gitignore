@@ -36,6 +36,8 @@ x64/
 ipch/
 GeneratedFiles/
 .moc/
+/UI/obs.rc
+.vscode/
 
 /other/
 
@@ -87,7 +89,6 @@ tags
 *.obj
 *.pdb
 *.res
-*.manifest
 *.dep
 *.zip
 *.lnk
@@ -96,6 +97,9 @@ tags
 .DS_Store
 */.DS_Store
 */**/.DS_Store
+/CMakeLists.new.txt.bak
+/CMakeLists.txt.bak
 /out/build/x64-Debug
 /out/install/x64-Debug
+/.github/workflows
 /out/build
