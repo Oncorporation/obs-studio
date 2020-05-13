@@ -63,7 +63,7 @@ set(ENABLE_SCRIPTING TRUE CACHE BOOL "Enables scripting")
 set(SCRIPTING_ENABLED OFF CACHE BOOL "Internal global cmake variable" FORCE)
 set(AMF_SDK_DIR "G:/Projects/obs-studio-oncorp/plugins/enc-amf/AMF" CACHE PATH "Path to AMF SDK")
 set(FFmpegPath "G:/Projects/obs-deps/win64" CACHE PATH "Path to FFmpeg")
-set(FFmpeg_decode_cmakePath Path "G:/Projects/obs-studio-oncorp/out/build/x64-Debug/plugins/win-dshow/cmakefiles/win-dshow.dir" CACHE PATH "Path to FFmpeg decode")
+set(FFmpeg_decode_cmakePath "G:/Projects/obs-studio-oncorp/out/build/x64-Debug/plugins/win-dshow/cmakefiles/win-dshow.dir" CACHE PATH "Path to FFmpeg decode")
 
 include(ObsHelpers)
 include(ObsCpack)
