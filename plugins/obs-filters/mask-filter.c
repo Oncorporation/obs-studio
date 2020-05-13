@@ -158,6 +158,9 @@ static obs_properties_t *mask_filter_properties(void *data)
 				     obs_module_text("MaskBlendType.MaskAlpha"),
 				     "mask_alpha_filter.effect");
 	obs_property_list_add_string(
+		p, obs_module_text("MaskBlendType.MaskBackground"),
+		"mask_background_filter.effect");
+	obs_property_list_add_string(
 		p, obs_module_text("MaskBlendType.BlendMultiply"),
 		"blend_mul_filter.effect");
 	obs_property_list_add_string(
