@@ -28,6 +28,9 @@ set(frontend-tools_HEADERS
 	../../horizontal-scroll-area.hpp
 	../../vertical-scroll-area.hpp
 	../../double-slider.hpp
+	../../slider-ignorewheel.hpp
+	../../combobox-ignorewheel.hpp
+	../../spinbox-ignorewheel.hpp
 	)
 set(frontend-tools_SOURCES
 	${frontend-tools_SOURCES}
@@ -38,6 +41,9 @@ set(frontend-tools_SOURCES
 	../../horizontal-scroll-area.cpp
 	../../vertical-scroll-area.cpp
 	../../double-slider.cpp
+	../../slider-ignorewheel.cpp
+	../../combobox-ignorewheel.cpp
+	../../spinbox-ignorewheel.cpp
 	)
 set(frontend-tools_UI
 	${frontend-tools_UI}
@@ -65,8 +71,11 @@ if(SCRIPTING_ENABLED)
 endif()
 
 if(WIN32)
+	set(MODULE_DESCRIPTION "OBS Frontend Tools")
+	configure_file(${CMAKE_SOURCE_DIR}/cmake/winrc/obs-module.rc.in frontend-tools.rc)
 	set(frontend-tools_PLATFORM_SOURCES
-		auto-scene-switcher-win.cpp)
+		auto-scene-switcher-win.cpp
+		frontend-tools.rc)
 
 	if(BUILD_CAPTIONS)
 		set(frontend-tools_PLATFORM_SOURCES
@@ -113,5 +122,6 @@ target_link_libraries(frontend-tools
 	obs-frontend-api
 	Qt5::Widgets
 	libobs)
+set_target_properties(frontend-tools PROPERTIES FOLDER "frontend")
 
 install_obs_plugin_with_data(frontend-tools data)

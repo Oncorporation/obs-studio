@@ -1,8 +1,8 @@
 #!/bin/sh
 set -ex
 
-sudo add-apt-repository ppa:jonathonf/ffmpeg-3 -y
 curl -L https://packagecloud.io/github/git-lfs/gpgkey | sudo apt-key add -
+
 sudo apt-get -qq update
 sudo apt-get install -y \
         build-essential \
@@ -33,12 +33,18 @@ sudo apt-get install -y \
         libvlc-dev \
         libx11-dev \
         libx264-dev \
+        libxcb-randr0-dev \
         libxcb-shm0-dev \
         libxcb-xinerama0-dev \
         libxcomposite-dev \
         libxinerama-dev \
+        libmbedtls-dev \
         pkg-config \
         python3-dev \
         qtbase5-dev \
         libqt5svg5-dev \
         swig
+
+# build cef
+wget --quiet --retry-connrefused --waitretry=1 https://cdn-fastly.obsproject.com/downloads/cef_binary_${CEF_BUILD_VERSION}_linux64.tar.bz2
+tar -xjf ./cef_binary_${CEF_BUILD_VERSION}_linux64.tar.bz2
