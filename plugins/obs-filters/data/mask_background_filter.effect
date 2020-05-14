@@ -4,6 +4,7 @@ uniform texture2d image;
 uniform texture2d target;
 uniform float4 color;
 uniform float opacity;
+uniform bool invert;
 uniform float2 mul_val;
 uniform float2 add_val;
 
@@ -39,6 +40,9 @@ float4 PSColorMaskRGBA(VertDataOut v_in) : TARGET
 	float4 rgba = image.Sample(textureSampler, v_in.uv);
 
 	float4 targetRGB = target.Sample(textureSampler, v_in.uv2) * color;
+	if (invert){
+		targetRGB.rgb = 1.0 - targetRGB.rgb;
+	}
 	float4 shadowRGB = targetRGB * targetRGB;
 
 	if ((abs(targetRGB.r - rgba.r) <= Tolerance &&
@@ -61,4 +65,3 @@ technique Draw
 		pixel_shader  = PSColorMaskRGBA(v_in);
 	}
 }
-
