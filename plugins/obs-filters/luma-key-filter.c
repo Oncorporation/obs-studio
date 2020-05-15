@@ -6,8 +6,8 @@
 #define SETTING_LUMA_MIN           "luma_min"
 #define SETTING_LUMA_MAX_SMOOTH    "luma_max_smooth"
 #define SETTING_LUMA_MIN_SMOOTH    "luma_min_smooth"
-#define SETTING_COLOR			   "color"
-#define SETTING_INVERT_LUMA		   "invert_luma"
+#define SETTING_COLOR		   "color"
+#define SETTING_INVERT_LUMA	   "invert_luma"
 #define SETTING_INVERT_COLOR	   "invert_color"
 
 #define TEXT_LUMA_MAX           obs_module_text("Luma.LumaMax")
@@ -15,8 +15,8 @@
 #define TEXT_LUMA_MAX_SMOOTH    obs_module_text("Luma.LumaMaxSmooth")
 #define TEXT_LUMA_MIN_SMOOTH    obs_module_text("Luma.LumaMinSmooth")
 #define TEXT_COLOR              obs_module_text("Color")
-#define TEXT_INVERT_LUMA		obs_module_text("Invert Luma")
-#define TEXT_INVERT_COLOR		obs_module_text("Invert Color")
+#define TEXT_INVERT_LUMA	obs_module_text("Luma.InvertLuma")
+#define TEXT_INVERT_COLOR	obs_module_text("Luma.InvertColor")
 
 /* clang-format on */
 
@@ -37,8 +37,8 @@ struct luma_key_filter_data {
 	float		luma_max;
 	float		luma_min;
 	float		luma_max_smooth;
-	float       luma_min_smooth;
-	struct vec4 color;
+	float		luma_min_smooth;
+	struct		vec4 color;
 	bool		invert_color;
 	bool		invert_luma;
 };
@@ -153,13 +153,13 @@ static obs_properties_t *luma_key_properties(void *data)
 	obs_properties_t *props = obs_properties_create();
 
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX, TEXT_LUMA_MAX,
-					0, 1, 0.01);
+					-.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX_SMOOTH,
-					TEXT_LUMA_MAX_SMOOTH, 0, 1, 0.01);
+					TEXT_LUMA_MAX_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN, TEXT_LUMA_MIN,
-					0, 1, 0.01);
+					-0.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN_SMOOTH,
-		TEXT_LUMA_MIN_SMOOTH, 0, 1, 0.01);
+		TEXT_LUMA_MIN_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_COLOR, TEXT_INVERT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_LUMA, TEXT_INVERT_LUMA);
