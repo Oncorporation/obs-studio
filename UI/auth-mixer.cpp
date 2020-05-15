@@ -7,6 +7,7 @@
 #include <qt-wrappers.hpp>
 #include <obs-app.hpp>
 
+#include "window-dock-browser.hpp"
 #include "window-basic-main.hpp"
 #include "remote-text.hpp"
 
@@ -19,32 +20,20 @@
 
 using namespace json11;
 
-#include <browser-panel.hpp>
-extern QCef *cef;
-extern QCefCookieManager *panel_cookies;
-
 /* ------------------------------------------------------------------------- */
 
-#define MIXER_AUTH_URL \
-	"https://obsproject.com/app-auth/mixer?action=redirect"
-#define MIXER_TOKEN_URL \
-	"https://obsproject.com/app-auth/mixer-token"
+#define MIXER_AUTH_URL "https://obsproject.com/app-auth/mixer?action=redirect"
+#define MIXER_TOKEN_URL "https://obsproject.com/app-auth/mixer-token"
 
 #define MIXER_SCOPE_VERSION 1
 
-static Auth::Def mixerDef = {
-	"Mixer",
-	Auth::Type::OAuth_StreamKey
-};
+static Auth::Def mixerDef = {"Mixer", Auth::Type::OAuth_StreamKey};
 
 /* ------------------------------------------------------------------------- */
 
-MixerAuth::MixerAuth(const Def &d)
-	: OAuthStreamKey(d)
-{
-}
+MixerAuth::MixerAuth(const Def &d) : OAuthStreamKey(d) {}
 
-bool MixerAuth::GetChannelInfo()
+bool MixerAuth::GetChannelInfo(bool allow_retry)
 try {
 	std::string client_id = MIXER_CLIENTID;
 	deobfuscate_str(&client_id[0], MIXER_HASH);
@@ -70,23 +59,16 @@ try {
 	bool success;
 
 	if (id.empty()) {
-		auto func = [&] () {
+		auto func = [&]() {
 			success = GetRemoteFile(
-					"https://mixer.com/api/v1/users/current",
-					output,
-					error,
-					nullptr,
-					"application/json",
-					nullptr,
-					headers,
-					nullptr,
-					5);
+				"https://mixer.com/api/v1/users/current",
+				output, error, nullptr, "application/json",
+				nullptr, headers, nullptr, 5);
 		};
 
-		ExecuteFuncSafeBlockMsgBox(
-				func,
-				QTStr("Auth.LoadingChannel.Title"),
-				QTStr("Auth.LoadingChannel.Text").arg(service()));
+		ExecThreadedWithoutBlocking(
+			func, QTStr("Auth.LoadingChannel.Title"),
+			QTStr("Auth.LoadingChannel.Text").arg(service()));
 		if (!success || output.empty())
 			throw ErrorInfo("Failed to get user info from remote",
 					error);
@@ -97,11 +79,12 @@ try {
 
 		error = json["error"].string_value();
 		if (!error.empty())
-			throw ErrorInfo(error,
-					json["error_description"].string_value());
+			throw ErrorInfo(
+				error,
+				json["error_description"].string_value());
 
-		id    = std::to_string(json["channel"]["id"].int_value());
-		name  = json["channel"]["token"].string_value();
+		id = std::to_string(json["channel"]["id"].int_value());
+		name = json["channel"]["token"].string_value();
 	}
 
 	/* ------------------ */
@@ -113,23 +96,15 @@ try {
 
 	output.clear();
 
-	auto func = [&] () {
-		success = GetRemoteFile(
-				url.c_str(),
-				output,
-				error,
-				nullptr,
-				"application/json",
-				nullptr,
-				headers,
-				nullptr,
-				5);
+	auto func = [&]() {
+		success = GetRemoteFile(url.c_str(), output, error, nullptr,
+					"application/json", nullptr, headers,
+					nullptr, 5);
 	};
 
-	ExecuteFuncSafeBlockMsgBox(
-			func,
-			QTStr("Auth.LoadingChannel.Title"),
-			QTStr("Auth.LoadingChannel.Text").arg(service()));
+	ExecThreadedWithoutBlocking(
+		func, QTStr("Auth.LoadingChannel.Title"),
+		QTStr("Auth.LoadingChannel.Text").arg(service()));
 	if (!success || output.empty())
 		throw ErrorInfo("Failed to get stream key from remote", error);
 
@@ -139,22 +114,35 @@ try {
 
 	error = json["error"].string_value();
 	if (!error.empty())
-		throw ErrorInfo(error, json["error_description"].string_value());
+		throw ErrorInfo(error,
+				json["error_description"].string_value());
 
-	key_ = id + "-" + json["streamKey"].string_value();
+	std::string key_suffix = json["streamKey"].string_value();
+
+	/* Mixer does not throw an error; instead it gives you the channel data
+	 * json without the data you normally have privileges for, which means
+	 * it'll be an empty stream key usually.  So treat empty stream key as
+	 * an error. */
+	if (key_suffix.empty()) {
+		if (allow_retry && RetryLogin()) {
+			return GetChannelInfo(false);
+		}
+		throw ErrorInfo("Auth Failure", "Could not get channel data");
+	}
+
+	key_ = id + "-" + key_suffix;
 
 	return true;
 } catch (ErrorInfo info) {
 	QString title = QTStr("Auth.ChannelFailure.Title");
 	QString text = QTStr("Auth.ChannelFailure.Text")
-		.arg(service(), info.message.c_str(), info.error.c_str());
+			       .arg(service(), info.message.c_str(),
+				    info.error.c_str());
 
 	QMessageBox::warning(OBSBasic::Get(), title, text);
 
-	blog(LOG_WARNING, "%s: %s: %s",
-			__FUNCTION__,
-			info.message.c_str(),
-			info.error.c_str());
+	blog(LOG_WARNING, "%s: %s: %s", __FUNCTION__, info.message.c_str(),
+	     info.error.c_str());
 	return false;
 }
 
@@ -165,15 +153,13 @@ void MixerAuth::SaveInternal()
 	config_set_string(main->Config(), service(), "Id", id.c_str());
 	if (uiLoaded) {
 		config_set_string(main->Config(), service(), "DockState",
-				main->saveState().toBase64().constData());
+				  main->saveState().toBase64().constData());
 	}
 	OAuthStreamKey::SaveInternal();
 }
 
-static inline std::string get_config_str(
-		OBSBasic *main,
-		const char *section,
-		const char *name)
+static inline std::string get_config_str(OBSBasic *main, const char *section,
+					 const char *name)
 {
 	const char *val = config_get_string(main->Config(), section, name);
 	return val ? val : "";
@@ -191,23 +177,24 @@ bool MixerAuth::LoadInternal()
 	return OAuthStreamKey::LoadInternal();
 }
 
-class MixerChat : public QDockWidget {
-public:
-	inline MixerChat() : QDockWidget() {}
-
-	QScopedPointer<QCefWidget> widget;
-};
+static const char *elixr_script = "\
+var elixr = document.createElement('script');\
+elixr.setAttribute('src','https://api.mixrelixr.com/scripts/elixr-emotes-embedded-chat.bundle.js');\
+document.head.appendChild(elixr);";
 
 void MixerAuth::LoadUI()
 {
+	if (!cef)
+		return;
 	if (uiLoaded)
 		return;
 	if (!GetChannelInfo())
 		return;
 
-	OBSBasic::InitBrowserPanelSafeBlock(true);
+	OBSBasic::InitBrowserPanelSafeBlock();
 	OBSBasic *main = OBSBasic::Get();
 
+	std::string script = "";
 	std::string url;
 	url += "https://mixer.com/embed/chat/";
 	url += id;
@@ -215,7 +202,7 @@ void MixerAuth::LoadUI()
 	QSize size = main->frameSize();
 	QPoint pos = main->pos();
 
-	chat.reset(new MixerChat());
+	chat.reset(new BrowserDock());
 	chat->setObjectName("mixerChat");
 	chat->resize(300, 600);
 	chat->setMinimumSize(200, 300);
@@ -223,7 +210,16 @@ void MixerAuth::LoadUI()
 	chat->setAllowedAreas(Qt::AllDockWidgetAreas);
 
 	QCefWidget *browser = cef->create_widget(nullptr, url, panel_cookies);
-	chat->setWidget(browser);
+	chat->SetWidget(browser);
+
+	const int mxAddonChoice =
+		config_get_int(main->Config(), service(), "AddonChoice");
+	if (mxAddonChoice) {
+		if (mxAddonChoice & 0x1)
+			script += elixr_script;
+	}
+
+	browser->setStartupScript(script);
 
 	main->addDockWidget(Qt::RightDockWidgetArea, chat.data());
 	chatMenu.reset(main->AddDockWidget(chat.data()));
@@ -236,8 +232,8 @@ void MixerAuth::LoadUI()
 	if (firstLoad) {
 		chat->setVisible(true);
 	} else {
-		const char *dockStateStr = config_get_string(main->Config(),
-				service(), "DockState");
+		const char *dockStateStr = config_get_string(
+			main->Config(), service(), "DockState");
 		QByteArray dockState =
 			QByteArray::fromBase64(QByteArray(dockStateStr));
 		main->restoreState(dockState);
@@ -248,6 +244,9 @@ void MixerAuth::LoadUI()
 
 bool MixerAuth::RetryLogin()
 {
+	if (!cef)
+		return false;
+
 	OAuthLogin login(OBSBasic::Get(), MIXER_AUTH_URL, false);
 	cef->add_popup_whitelist_url("about:blank", &login);
 
@@ -265,6 +264,10 @@ bool MixerAuth::RetryLogin()
 
 std::shared_ptr<Auth> MixerAuth::Login(QWidget *parent)
 {
+	if (!cef) {
+		return nullptr;
+	}
+
 	OAuthLogin login(parent, MIXER_AUTH_URL, false);
 	cef->add_popup_whitelist_url("about:blank", &login);
 
@@ -278,12 +281,12 @@ std::shared_ptr<Auth> MixerAuth::Login(QWidget *parent)
 	deobfuscate_str(&client_id[0], MIXER_HASH);
 
 	if (!auth->GetToken(MIXER_TOKEN_URL, client_id, MIXER_SCOPE_VERSION,
-				QT_TO_UTF8(login.GetCode()))) {
+			    QT_TO_UTF8(login.GetCode()))) {
 		return nullptr;
 	}
 
 	std::string error;
-	if (auth->GetChannelInfo()) {
+	if (auth->GetChannelInfo(false)) {
 		return auth;
 	}
 
@@ -305,9 +308,6 @@ static void DeleteCookies()
 
 void RegisterMixerAuth()
 {
-	OAuth::RegisterOAuth(
-			mixerDef,
-			CreateMixerAuth,
-			MixerAuth::Login,
-			DeleteCookies);
+	OAuth::RegisterOAuth(mixerDef, CreateMixerAuth, MixerAuth::Login,
+			     DeleteCookies);
 }

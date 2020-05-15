@@ -33,6 +33,7 @@ set(linux-decklink_HEADERS
 	../decklink-device-mode.hpp
 	../audio-repack.h
 	../audio-repack.hpp
+	../util.hpp
 	)
 
 set(linux-decklink_SOURCES
@@ -49,6 +50,7 @@ set(linux-decklink_SOURCES
 	../decklink-device-mode.cpp
 	../audio-repack.c
 	platform.cpp
+	../util.cpp
 	)
 
 add_library(linux-decklink MODULE
@@ -61,5 +63,6 @@ add_library(linux-decklink MODULE
 target_link_libraries(linux-decklink
 	libobs
 	)
+set_target_properties(linux-decklink PROPERTIES FOLDER "plugins")
 
 install_obs_plugin_with_data(linux-decklink ../data)

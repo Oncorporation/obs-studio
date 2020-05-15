@@ -17,6 +17,9 @@ set(decklink-ouput-ui_HEADERS
 	../../properties-view.moc.hpp
 	../../vertical-scroll-area.hpp
 	../../double-slider.hpp
+	../../slider-ignorewheel.hpp
+	../../combobox-ignorewheel.hpp
+	../../spinbox-ignorewheel.hpp
 	./DecklinkOutputUI.h
 	decklink-ui-main.h
 	)
@@ -25,6 +28,9 @@ set(decklink-ouput-ui_SOURCES
 	../../properties-view.cpp
 	../../vertical-scroll-area.cpp
 	../../double-slider.cpp
+	../../slider-ignorewheel.cpp
+	../../combobox-ignorewheel.cpp
+	../../spinbox-ignorewheel.cpp
 	./DecklinkOutputUI.cpp
 	decklink-ui-main.cpp
 	)
@@ -32,6 +38,13 @@ set(decklink-ouput-ui_UI
 	${decklink-ouput-ui_UI}
 	forms/output.ui
 	)
+
+if(WIN32)
+	set(MODULE_DESCRIPTION "OBS DeckLink Output UI")
+	configure_file(${CMAKE_SOURCE_DIR}/cmake/winrc/obs-module.rc.in decklink-ouput-ui.rc)
+	list(APPEND decklink-ouput-ui_SOURCES
+		decklink-ouput-ui.rc)
+endif()
 
 if(APPLE)
 	set(decklink-ouput-ui_PLATFORM_LIBS
@@ -51,5 +64,6 @@ target_link_libraries(decklink-ouput-ui
 	obs-frontend-api
 	Qt5::Widgets
 	libobs)
+set_target_properties(decklink-ouput-ui PROPERTIES FOLDER "frontend")
 
 install_obs_plugin_with_data(decklink-ouput-ui data)

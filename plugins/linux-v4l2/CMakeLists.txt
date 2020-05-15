@@ -31,6 +31,7 @@ include_directories(
 
 set(linux-v4l2_SOURCES
 	linux-v4l2.c
+	v4l2-controls.c
 	v4l2-input.c
 	v4l2-helpers.c
 	${linux-v4l2-udev_SOURCES}
@@ -44,5 +45,6 @@ target_link_libraries(linux-v4l2
 	${LIBV4L2_LIBRARIES}
 	${UDEV_LIBRARIES}
 )
+set_target_properties(linux-v4l2 PROPERTIES FOLDER "plugins")
 
 install_obs_plugin_with_data(linux-v4l2 data)

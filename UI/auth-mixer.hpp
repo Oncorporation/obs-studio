@@ -2,12 +2,12 @@
 
 #include "auth-oauth.hpp"
 
-class MixerChat;
+class BrowserDock;
 
 class MixerAuth : public OAuthStreamKey {
 	Q_OBJECT
 
-	QSharedPointer<MixerChat> chat;
+	QSharedPointer<BrowserDock> chat;
 	QSharedPointer<QAction> chatMenu;
 	bool uiLoaded = false;
 
@@ -19,7 +19,7 @@ class MixerAuth : public OAuthStreamKey {
 	virtual void SaveInternal() override;
 	virtual bool LoadInternal() override;
 
-	bool GetChannelInfo();
+	bool GetChannelInfo(bool allow_retry = true);
 
 	virtual void LoadUI() override;
 
