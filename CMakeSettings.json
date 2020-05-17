@@ -1,4 +1,4 @@
-{
+﻿{
   "configurations": [
     {
       "name": "x64-Debug",
@@ -50,6 +50,11 @@
           "name": "AMF_SDK_DIR",
           "value": "G:/Projects/obs-studio/plugins/enc-amf/AMF",
           "type": "PATH"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "G:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.25.28610/bin/HostX64/x64/cl.exe",
+          "type": "FILEPATH"
         }
       ]
     },

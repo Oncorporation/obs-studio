@@ -1,4 +1,4 @@
-// Version 1.1 by Charles Fettinger https://github.com/Oncorporation/obs-shaderfilter
+// Version 1.11 by Charles Fettinger https://github.com/Oncorporation/obs-shaderfilter
 // original version by nleseul https://github.com/nleseul/obs-shaderfilter
 #include <obs-module.h>
 #include <graphics/graphics.h>
@@ -14,6 +14,8 @@
 #include <stdio.h>
 
 #include <util/threading.h>	   
+
+/* clang-format off */
 
 #define nullptr ((void*)0)
 
@@ -70,6 +72,8 @@ technique Draw\
 	}\
 }";
 
+/* clang-format on */
+
 struct effect_param_data
 {
 	struct dstr name;
@@ -115,11 +119,15 @@ struct shader_filter_data
 	bool reload_effect;
 	struct dstr last_path;
 	bool last_from_file;
+	
+	uint64_t shader_last_time;
+	float shader_start_time;
+	uint64_t shader_duration;
 
 	gs_eparam_t *param_uv_offset;
 	gs_eparam_t *param_uv_scale;
 	gs_eparam_t *param_uv_pixel_interval;
-	gs_eparam_t *param_elapsed_time;
+	gs_eparam_t *param_elapsed_time;	
 	gs_eparam_t *param_rand_f;
 	gs_eparam_t *param_uv_size;	
 
@@ -132,6 +140,8 @@ struct shader_filter_data
 	int total_height;
 	bool use_sliders;
 	bool use_sources;  //consider using name instead, "source_name" or use annotation
+	bool use_shader_elapsed_time;
+	bool no_repeat;
 
 	struct vec2 uv_offset;
 	struct vec2 uv_scale;
@@ -181,7 +191,8 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 {
 	obs_data_t *settings = obs_source_get_settings(filter->context);
 
-	// First, clean up the old effect and all references to it. 
+	// First, clean up the old effect and all references to it.
+	filter->shader_start_time = 0.0;
 	size_t param_count = filter->stored_param_list.num;
 	for (size_t param_index = 0; param_index < param_count; param_index++)
 	{
@@ -241,7 +252,7 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 	bool use_template = !obs_data_get_bool(settings, "override_entire_effect");
 	bool use_sliders = !obs_data_get_bool(settings, "use_sliders");
 	bool use_sources = !obs_data_get_bool(settings, "use_sources");
-
+	bool use_shader_elapsed_time = !obs_data_get_bool(settings, "use_shader_elapsed_time");
 
 	struct dstr effect_text = { 0 };
 
@@ -286,7 +297,8 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 	da_free(info.sources.source_list);
 	*/
 	// Store references to the new effect's parameters. 
-	da_init(filter->stored_param_list);   
+	da_init(filter->stored_param_list);
+	
 	size_t effect_count = gs_effect_get_num_params(filter->effect);
 	for (size_t effect_index = 0; effect_index < effect_count; effect_index++)
 	{
@@ -363,25 +375,27 @@ static void *shader_filter_create(obs_data_t *settings, obs_source_t *source)
 	filter->last_from_file = obs_data_get_bool(settings, "from_file");
 	filter->use_sliders = obs_data_get_bool(settings, "use_sliders");
 	filter->use_sources = obs_data_get_bool(settings, "use_sources");
+	filter->use_shader_elapsed_time  = obs_data_get_bool(settings, "use_shader_elapsed_time");
 	filter->shader_mutex = PTHREAD_MUTEX_INITIALIZER;
 	filter->shader_update_mutex= PTHREAD_MUTEX_INITIALIZER;
 	if (filter->use_sources != true)
 		filter->use_sources = false;
+	//filter->shader_start_time = (float)os_gettime_ns();
 
 	da_init(filter->stored_param_list);
 
-	if (pthread_mutex_init(&filter->shader_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "Failed to create mutex");
-		bfree(filter);
-		return NULL;
-	}
+	//if (pthread_mutex_init(&filter->shader_mutex, NULL) != 0) {
+	//	blog(LOG_ERROR, "Failed to create mutex");
+	//	bfree(filter);
+	//	return NULL;
+	//}
 
-	if (pthread_mutex_init(&filter->shader_update_mutex, NULL) != 0) {
-		pthread_mutex_destroy(&filter->shader_mutex);
-		blog(LOG_ERROR, "Failed to create mutex");
-		bfree(filter);
-		return NULL;
-	}
+	//if (pthread_mutex_init(&filter->shader_update_mutex, NULL) != 0) {
+	//	pthread_mutex_destroy(&filter->shader_mutex);
+	//	blog(LOG_ERROR, "Failed to create mutex");
+	//	bfree(filter);
+	//	return NULL;
+	//}
 	  
 	obs_source_update(source, settings);
 	return filter;
@@ -394,8 +408,8 @@ static void shader_filter_destroy(void *data)
 	dstr_free(&filter->last_path);
 	da_free(filter->stored_param_list);
 
-	pthread_mutex_destroy(&filter->shader_mutex);
-	pthread_mutex_destroy(&filter->shader_update_mutex);
+	//pthread_mutex_destroy(&filter->shader_mutex);
+	//pthread_mutex_destroy(&filter->shader_update_mutex);
 
 	bfree(filter);
 }
@@ -444,6 +458,21 @@ static bool use_sliders_changed(obs_properties_t *props,
 		filter->reload_effect = true;
 	}
 	filter->use_sliders = use_sliders;
+
+	return false;
+}
+
+static bool use_shader_elapsed_time_changed(obs_properties_t *props, obs_property_t *p,
+				obs_data_t *settings)
+{
+	struct shader_filter_data *filter = obs_properties_get_param(props);
+
+	bool use_shader_elapsed_time =
+		obs_data_get_bool(settings, "use_shader_elapsed_time");
+	if (use_shader_elapsed_time != filter->use_shader_elapsed_time) {
+		filter->reload_effect = true;
+	}
+	filter->use_shader_elapsed_time = use_shader_elapsed_time;
 
 	return false;
 }
@@ -585,9 +614,15 @@ static obs_properties_t *shader_filter_properties(void *data)
 		obs_module_text("ShaderFilter.UseSliders"));
 	obs_property_set_modified_callback(use_sliders, use_sliders_changed);
 
-	obs_property_t *use_sources = obs_properties_add_bool(props, "use_sources",
-		obs_module_text("ShaderFilter.UseSources"));
-	obs_property_set_modified_callback(use_sources, use_sources_changed);
+	//obs_property_t *use_sources = obs_properties_add_bool(props, "use_sources",
+	//	obs_module_text("ShaderFilter.UseSources"));
+	//obs_property_set_modified_callback(use_sources, use_sources_changed);
+
+	obs_property_t *use_shader_elapsed_time = obs_properties_add_bool(
+		props, "use_shader_elapsed_time",
+		obs_module_text("ShaderFilter.UseShaderElapsedTime"));
+	obs_property_set_modified_callback(use_shader_elapsed_time,
+					   use_shader_elapsed_time_changed);
 
 	obs_properties_add_button(props, "reload_effect", obs_module_text("ShaderFilter.ReloadEffect"),
 		shader_filter_reload_effect_clicked);
@@ -713,6 +748,7 @@ static void shader_filter_update(void *data, obs_data_t *settings)
 	filter->expand_bottom = (int)obs_data_get_int(settings, "expand_bottom");
 	filter->use_sliders = (bool)obs_data_get_bool(settings, "use_sliders");
 	filter->use_sources = (bool)obs_data_get_bool(settings, "use_sources");
+	filter->use_shader_elapsed_time = (bool)obs_data_get_bool(settings, "use_shader_elapsed_time");
 
 	if (filter->reload_effect)
 	{
@@ -854,6 +890,9 @@ static void shader_filter_tick(void *data, float seconds)
 	filter->uv_pixel_interval.x = 1.0f / base_width;
 	filter->uv_pixel_interval.y = 1.0f / base_height;
 
+	if (filter->shader_start_time == 0) {
+		filter->shader_start_time = filter->elapsed_time + seconds;
+	}
 	filter->elapsed_time += seconds;
 
 	// undecided between this and "rand_float(1);" 
@@ -891,7 +930,21 @@ static void shader_filter_render(void *data, gs_effect_t *effect)
 		}
 		if (filter->param_elapsed_time != NULL)
 		{
-			gs_effect_set_float(filter->param_elapsed_time, filter->elapsed_time);
+			if (filter->use_shader_elapsed_time) {
+				gs_effect_set_float(
+					filter->param_elapsed_time,
+					filter->elapsed_time -
+						filter->shader_start_time);
+			} else {
+				gs_effect_set_float(filter->param_elapsed_time,
+						    filter->elapsed_time);
+			}
+			//gs_effect_set_float(
+			//	filter->param_elapsed_time,
+			//	(filter->use_shader_elapsed_time
+			//		 ? filter->elapsed_time -
+			//			   filter->shader_start_time
+			//		 : filter->elapsed_time));
 		}
 		if (filter->param_rand_f != NULL)
 		{
@@ -950,9 +1003,7 @@ static void shader_filter_render(void *data, gs_effect_t *effect)
 						// Don't bother rendering sources that aren't video.
 						if ((obs_source_get_output_flags(source) & OBS_SOURCE_VIDEO) == 0) {
 							break;
-						}
-
-						
+						}	    				
 
 					}
 					obs_source_release(source);

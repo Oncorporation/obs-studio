@@ -1,7 +1,7 @@
 project(obs-shaderfilter)
 
 set(obs-shaderfilter_SOURCES
-	src/obs-shaderfilter.c
+	obs-shaderfilter.c
 	)
 
 if(WIN32)
