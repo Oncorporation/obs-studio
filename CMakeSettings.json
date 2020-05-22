@@ -48,7 +48,7 @@
         },
         {
           "name": "AMF_SDK_DIR",
-          "value": "G:/Projects/obs-studio/plugins/enc-amf/AMF",
+          "value": "G:/Projects/obs-studio-oncorp/plugins/enc-amf/AMF",
           "type": "PATH"
         },
         {
