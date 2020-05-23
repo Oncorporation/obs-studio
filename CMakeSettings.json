@@ -28,7 +28,7 @@
         },
         {
           "name": "FFMPEG_avformat_LIBRARY",
-          "value": "G:/Projects/obs-deps/win64/lbin/avformat.lib",
+          "value": "G:/Projects/obs-deps/win64/bin/avformat.lib",
           "type": "FILEPATH"
         },
         {
