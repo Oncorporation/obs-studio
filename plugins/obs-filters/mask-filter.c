@@ -27,21 +27,21 @@
 struct mask_filter_data {
 	uint64_t last_time;
 
-	obs_source_t* context;
-	gs_effect_t* effect;
+	obs_source_t *context;
+	gs_effect_t *effect;
 
-	char* image_file;
+	char *image_file;
 	time_t image_file_timestamp;
 	float update_time_elapsed;
 
-	gs_texture_t* target;
+	gs_texture_t *target;
 	gs_image_file_t image;
 	struct vec4 color;
 	float opacity;
 	bool lock_aspect;
 };
 
-static time_t get_modified_timestamp(const char* filename)
+static time_t get_modified_timestamp(const char *filename)
 {
 	struct stat stats;
 	if (os_stat(filename, &stats) != 0)
@@ -49,24 +49,24 @@ static time_t get_modified_timestamp(const char* filename)
 	return stats.st_mtime;
 }
 
-static const char* mask_filter_get_name(void* unused)
+static const char *mask_filter_get_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	return obs_module_text("MaskFilter");
 }
 
-static void mask_filter_image_unload(struct mask_filter_data* filter)
+static void mask_filter_image_unload(struct mask_filter_data *filter)
 {
 	obs_enter_graphics();
 	gs_image_file_free(&filter->image);
 	obs_leave_graphics();
 }
 
-static void mask_filter_image_load(struct mask_filter_data* filter)
+static void mask_filter_image_load(struct mask_filter_data *filter)
 {
 	mask_filter_image_unload(filter);
 
-	char* path = filter->image_file;
+	char *path = filter->image_file;
 
 	if (path && *path) {
 		filter->image_file_timestamp = get_modified_timestamp(path);
@@ -81,25 +81,25 @@ static void mask_filter_image_load(struct mask_filter_data* filter)
 	}
 }
 
-static void mask_filter_update(void* data, obs_data_t* settings)
+static void mask_filter_update(void *data, obs_data_t *settings)
 {
-	struct mask_filter_data* filter = data;
+	struct mask_filter_data *filter = data;
 
-	const char* path = obs_data_get_string(settings, SETTING_IMAGE_PATH);
-	const char* effect_file = obs_data_get_string(settings, SETTING_TYPE);
+	const char *path = obs_data_get_string(settings, SETTING_IMAGE_PATH);
+	const char *effect_file = obs_data_get_string(settings, SETTING_TYPE);
 	uint32_t color = (uint32_t)obs_data_get_int(settings, SETTING_COLOR);
 	float opacity = (float)obs_data_get_double(settings, SETTING_OPACITY);
-	char* effect_path;
+	char *effect_path;
 
 	if (filter->image_file)
 		bfree(filter->image_file);
 	filter->image_file = bstrdup(path);
-	filter->opacity = opacity;
 
 	color &= 0xFFFFFF;
 	color |= (uint32_t)(((double)opacity) * 2.55) << 24;
 
 	vec4_from_rgba(&filter->color, color);
+	filter->opacity = opacity;
 	mask_filter_image_load(filter);
 	filter->lock_aspect = !obs_data_get_bool(settings, SETTING_STRETCH);
 
@@ -113,21 +113,21 @@ static void mask_filter_update(void* data, obs_data_t* settings)
 	obs_leave_graphics();
 }
 
-static void mask_filter_defaults(obs_data_t* settings)
+static void mask_filter_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_string(settings, SETTING_TYPE,
-		"mask_color_filter.effect");
+				    "mask_color_filter.effect");
 	obs_data_set_default_int(settings, SETTING_COLOR, 0xFFFFFF);
-	obs_data_set_default_int(settings, SETTING_OPACITY, 100.0);
+	obs_data_set_default_double(settings, SETTING_OPACITY, 100.0);
 }
 
 #define IMAGE_FILTER_EXTENSIONS " (*.bmp *.jpg *.jpeg *.tga *.gif *.png)"
 
-static obs_properties_t* mask_filter_properties(void* data)
+static obs_properties_t *mask_filter_properties(void *data)
 {
-	obs_properties_t* props = obs_properties_create();
-	struct dstr filter_str = { 0 };
-	obs_property_t* p;
+	obs_properties_t *props = obs_properties_create();
+	struct dstr filter_str = {0};
+	obs_property_t *p;
 
 	dstr_copy(&filter_str, TEXT_PATH_IMAGES);
 	dstr_cat(&filter_str, IMAGE_FILTER_EXTENSIONS ";;");
@@ -135,33 +135,33 @@ static obs_properties_t* mask_filter_properties(void* data)
 	dstr_cat(&filter_str, " (*.*)");
 
 	p = obs_properties_add_list(props, SETTING_TYPE, TEXT_TYPE,
-		OBS_COMBO_TYPE_LIST,
-		OBS_COMBO_FORMAT_STRING);
+				    OBS_COMBO_TYPE_LIST,
+				    OBS_COMBO_FORMAT_STRING);
 
 	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.MaskColor"),
-		"mask_color_filter.effect");
+				     obs_module_text("MaskBlendType.MaskColor"),
+				     "mask_color_filter.effect");
 	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.MaskAlpha"),
-		"mask_alpha_filter.effect");
-	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.MaskBackground"),
+				     obs_module_text("MaskBlendType.MaskAlpha"),
+				     "mask_alpha_filter.effect");
+	obs_property_list_add_string(
+		p, obs_module_text("MaskBlendType.MaskBackground"),
 		"mask_background_filter.effect");
-	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.BlendMultiply"),
+	obs_property_list_add_string(
+		p, obs_module_text("MaskBlendType.BlendMultiply"),
 		"blend_mul_filter.effect");
-	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.BlendAddition"),
+	obs_property_list_add_string(
+		p, obs_module_text("MaskBlendType.BlendAddition"),
 		"blend_add_filter.effect");
-	obs_property_list_add_string(p,
-		obs_module_text("MaskBlendType.BlendSubtraction"),
+	obs_property_list_add_string(
+		p, obs_module_text("MaskBlendType.BlendSubtraction"),
 		"blend_sub_filter.effect");
 
 	obs_properties_add_path(props, SETTING_IMAGE_PATH, TEXT_IMAGE_PATH,
-		OBS_PATH_FILE, filter_str.array, NULL);
+				OBS_PATH_FILE, filter_str.array, NULL);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
-	obs_properties_add_float_slider(props, SETTING_OPACITY, TEXT_OPACITY,
-		0, 100, 0.05);
+	obs_properties_add_float_slider(props, SETTING_OPACITY, TEXT_OPACITY, 0,
+				      100, 0.05);
 	obs_properties_add_bool(props, SETTING_STRETCH, TEXT_STRETCH);
 
 	dstr_free(&filter_str);
@@ -170,9 +170,9 @@ static obs_properties_t* mask_filter_properties(void* data)
 	return props;
 }
 
-static void* mask_filter_create(obs_data_t* settings, obs_source_t* context)
+static void *mask_filter_create(obs_data_t *settings, obs_source_t *context)
 {
-	struct mask_filter_data* filter =
+	struct mask_filter_data *filter =
 		bzalloc(sizeof(struct mask_filter_data));
 	filter->context = context;
 
@@ -180,9 +180,9 @@ static void* mask_filter_create(obs_data_t* settings, obs_source_t* context)
 	return filter;
 }
 
-static void mask_filter_destroy(void* data)
+static void mask_filter_destroy(void *data)
 {
-	struct mask_filter_data* filter = data;
+	struct mask_filter_data *filter = data;
 
 	if (filter->image_file)
 		bfree(filter->image_file);
@@ -195,9 +195,9 @@ static void mask_filter_destroy(void* data)
 	bfree(filter);
 }
 
-static void mask_filter_tick(void* data, float seconds)
+static void mask_filter_tick(void *data, float seconds)
 {
-	struct mask_filter_data* filter = data;
+	struct mask_filter_data *filter = data;
 	filter->update_time_elapsed += seconds;
 
 	if (filter->update_time_elapsed >= 1.0f) {
@@ -216,7 +216,7 @@ static void mask_filter_tick(void* data, float seconds)
 			filter->last_time = cur_time;
 
 		gs_image_file_tick(&filter->image,
-			cur_time - filter->last_time);
+				   cur_time - filter->last_time);
 		obs_enter_graphics();
 		gs_image_file_update_texture(&filter->image);
 		obs_leave_graphics();
@@ -225,13 +225,13 @@ static void mask_filter_tick(void* data, float seconds)
 	}
 }
 
-static void mask_filter_render(void* data, gs_effect_t* effect)
+static void mask_filter_render(void *data, gs_effect_t *effect)
 {
-	struct mask_filter_data* filter = data;
-	obs_source_t* target = obs_filter_get_target(filter->context);
-	gs_eparam_t* param;
-	struct vec2 add_val = { 0 };
-	struct vec2 mul_val = { 1.0f, 1.0f };
+	struct mask_filter_data *filter = data;
+	obs_source_t *target = obs_filter_get_target(filter->context);
+	gs_eparam_t *param;
+	struct vec2 add_val = {0};
+	struct vec2 mul_val = {1.0f, 1.0f};
 
 	if (!target || !filter->target || !filter->effect) {
 		obs_source_skip_video_filter(filter->context);
@@ -257,7 +257,7 @@ static void mask_filter_render(void* data, gs_effect_t* effect)
 		size_to_x = (source_aspect < mask_aspect);
 
 		fix = size_to_x ? (source_size.x / mask_size.x)
-			: (source_size.y / mask_size.y);
+				: (source_size.y / mask_size.y);
 
 		vec2_mulf(&mask_size, &mask_size, fix);
 		vec2_div(&mul_val, &source_size, &mask_size);
@@ -269,7 +269,7 @@ static void mask_filter_render(void* data, gs_effect_t* effect)
 	}
 
 	if (!obs_source_process_filter_begin(filter->context, GS_RGBA,
-		OBS_ALLOW_DIRECT_RENDERING))
+					     OBS_ALLOW_DIRECT_RENDERING))
 		return;
 
 	param = gs_effect_get_param_by_name(filter->effect, "target");
