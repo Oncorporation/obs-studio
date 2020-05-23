@@ -161,7 +161,7 @@ static obs_properties_t *mask_filter_properties(void *data)
 				OBS_PATH_FILE, filter_str.array, NULL);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
 	obs_properties_add_float_slider(props, SETTING_OPACITY, TEXT_OPACITY, 0,
-				      100, 0.05);
+					100, 0.05);
 	obs_properties_add_bool(props, SETTING_STRETCH, TEXT_STRETCH);
 
 	dstr_free(&filter_str);
