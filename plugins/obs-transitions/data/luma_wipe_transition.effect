@@ -2,41 +2,40 @@
 // https://github.com/rectalogic/rendermix-basic-effects/blob/master/assets/com/rendermix/Wipe/Wipe.frag
 // https://github.com/Oncorporation/obs-shaderfilter/blob/master/data/examples/shine.shader
 
-uniform float4x4  ViewProj;
+uniform float4x4 ViewProj;
 uniform texture2d a_tex;
 uniform texture2d b_tex;
 uniform texture2d l_tex;
 uniform float4 l_color;
 uniform float progress;
-uniform bool  invert;
+uniform bool invert;
 uniform float softness;
 
 sampler_state textureSampler {
-	Filter    = Linear;
-	AddressU  = Clamp;
-	AddressV  = Clamp;
+	Filter = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
 };
 
-struct VertData {
+struct VertData
+{
 	float4 pos : POSITION;
-	float2 uv  : TEXCOORD0;
+	float2 uv : TEXCOORD0;
 };
-
-#include "premultiplied.inc"
 
 VertData VSDefault(VertData v_in)
 {
 	VertData vert_out;
 	vert_out.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
-	vert_out.uv  = v_in.uv;
+	vert_out.uv = v_in.uv;
 	return vert_out;
 }
 
 float4 PSLumaWipe(VertData v_in) : TARGET
 {
 	float2 uv = v_in.uv;
-	float4 a_color = convert_pmalpha(a_tex.Sample(textureSampler, uv));
-	float4 b_color = convert_pmalpha(b_tex.Sample(textureSampler, uv));
+	float4 a_color = a_tex.Sample(textureSampler, uv);
+	float4 b_color = b_tex.Sample(textureSampler, uv);
 	float luma = l_tex.Sample(textureSampler, uv).x;
 
 	if (invert)
@@ -47,7 +46,8 @@ float4 PSLumaWipe(VertData v_in) : TARGET
 
 	float time = lerp(0.0f, 1.0f + softness, progress);
 
-	if (luma <= time - softness) {
+	if (luma <= time - softness)
+	{
 		float alpha_behind = clamp(1.0 - (time - softness - luma) / softness, 0.00, 1.0);
 		return lerp(b_color, out_color, alpha_behind);
 	}

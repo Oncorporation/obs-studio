@@ -43,7 +43,7 @@ static const char *luma_wipe_get_name(void *type_data)
 
 static void luma_wipe_update(void *data, obs_data_t *settings)
 {
-	struct luma_wipe_info *lwipe = data;	
+	struct luma_wipe_info *lwipe = data;
 
 	const char *name = obs_data_get_string(settings, S_LUMA_IMG);
 	lwipe->invert_luma = obs_data_get_bool(settings, S_LUMA_INV);
@@ -52,7 +52,7 @@ static void luma_wipe_update(void *data, obs_data_t *settings)
 
 	color |= 0xFF000000;
 
-	vec4_from_rgba(&lwipe->l_color, color);	
+	vec4_from_rgba(&lwipe->l_color, color);
 
 	struct dstr path = {0};
 
@@ -108,15 +108,15 @@ static void *luma_wipe_create(obs_data_t *settings, obs_source_t *source)
 	lwipe = bzalloc(sizeof(*lwipe));
 
 	lwipe->effect = effect;
-	lwipe->ep_a_tex		= gs_effect_get_param_by_name(effect, "a_tex");
-	lwipe->ep_b_tex		= gs_effect_get_param_by_name(effect, "b_tex");
-	lwipe->ep_l_tex		= gs_effect_get_param_by_name(effect, "l_tex");
-	lwipe->ep_l_color	= gs_effect_get_param_by_name(effect, "l_color");
-	lwipe->ep_progress	= gs_effect_get_param_by_name(effect, "progress");
-	lwipe->ep_invert	= gs_effect_get_param_by_name(effect, "invert");
-	lwipe->ep_softness	= gs_effect_get_param_by_name(effect, "softness");
-	
-	lwipe->source		= source;
+	lwipe->ep_a_tex = gs_effect_get_param_by_name(effect, "a_tex");
+	lwipe->ep_b_tex = gs_effect_get_param_by_name(effect, "b_tex");
+	lwipe->ep_l_tex = gs_effect_get_param_by_name(effect, "l_tex");
+	lwipe->ep_l_color = gs_effect_get_param_by_name(effect, "l_color");
+	lwipe->ep_progress = gs_effect_get_param_by_name(effect, "progress");
+	lwipe->ep_invert = gs_effect_get_param_by_name(effect, "invert");
+	lwipe->ep_softness = gs_effect_get_param_by_name(effect, "softness");
+
+	lwipe->source = source;
 
 	luma_wipe_get_list(lwipe);
 
@@ -185,7 +185,7 @@ static void luma_wipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 	gs_effect_set_bool(lwipe->ep_invert, lwipe->invert_luma);
 	gs_effect_set_float(lwipe->ep_softness, lwipe->softness);
-	
+
 	gs_effect_set_vec4(lwipe->ep_l_color, &lwipe->l_color);
 
 	while (gs_effect_loop(lwipe->effect, "LumaWipe"))
