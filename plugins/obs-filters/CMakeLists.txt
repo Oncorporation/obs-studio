@@ -54,6 +54,13 @@ set(obs-filters_SOURCES
 	expander-filter.c
 	luma-key-filter.c)
 
+if(WIN32)
+	set(MODULE_DESCRIPTION "OBS A/V Filters")
+	configure_file(${CMAKE_SOURCE_DIR}/cmake/winrc/obs-module.rc.in obs-filters.rc)
+	list(APPEND obs-filters_SOURCES
+		obs-filters.rc)
+endif()
+
 add_library(obs-filters MODULE
 	${obs-filters_SOURCES}
 	${obs-filters_config_HEADERS}
@@ -62,5 +69,6 @@ target_link_libraries(obs-filters
 	libobs
 	${obs-filters_PLATFORM_DEPS}
 	${obs-filters_LIBSPEEXDSP_LIBRARIES})
+set_target_properties(obs-filters PROPERTIES FOLDER "plugins")
 
 install_obs_plugin_with_data(obs-filters data)
