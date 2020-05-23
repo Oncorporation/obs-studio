@@ -12,11 +12,6 @@
       "ctestCommandArgs": "",
       "variables": [
         {
-          "name": "CURL_LIB",
-          "value": "G:/Projects/obs-deps/win64/libcurl.lib",
-          "type": "FILEPATH"
-        },
-        {
           "name": "FFMPEG_avcodec_LIBRARY",
           "value": "G:/Projects/obs-deps/win64/bin/avcodec.lib",
           "type": "FILEPATH"
@@ -24,6 +19,11 @@
         {
           "name": "FFMPEG_avdevice_LIBRARY",
           "value": "G:/Projects/obs-deps/win64/bin/avdevice.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "FFMPEG_avfilter_LIBRARY",
+          "value": "G:/Projects/obs-deps/win64/bin/avfilter.lib",
           "type": "FILEPATH"
         },
         {
@@ -44,6 +44,21 @@
         {
           "name": "FFMPEG_swscale_LIBRARY",
           "value": "G:/Projects/obs-deps/win64/bin/swscale.lib",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "AMF_SDK_DIR",
+          "value": "G:/Projects/obs-studio-oncorp/plugins/enc-amf/AMF",
+          "type": "PATH"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "G:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.25.28610/bin/HostX64/x64/cl.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CURL_LIB",
+          "value": "G:/Projects/obs-deps/win64/bin/libcurl.lib",
           "type": "FILEPATH"
         }
       ]
