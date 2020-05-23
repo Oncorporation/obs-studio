@@ -1,4 +1,4 @@
-﻿{
+{
   "configurations": [
     {
       "name": "x64-Debug",
@@ -45,11 +45,6 @@
           "name": "FFMPEG_swscale_LIBRARY",
           "value": "G:/Projects/obs-deps/win64/bin/swscale.lib",
           "type": "FILEPATH"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "G:/Projects/obs-studio-oncorp/out/install/x64-Debug",
-          "type": "PATH"
         },
         {
           "name": "FFmpeg_decode_cmakePath",
