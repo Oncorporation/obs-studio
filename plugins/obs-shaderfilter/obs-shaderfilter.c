@@ -123,13 +123,15 @@ struct shader_filter_data
 	uint64_t shader_last_time;
 	float shader_start_time;
 	uint64_t shader_duration;
+	int iteration;
 
 	gs_eparam_t *param_uv_offset;
 	gs_eparam_t *param_uv_scale;
 	gs_eparam_t *param_uv_pixel_interval;
 	gs_eparam_t *param_elapsed_time;	
 	gs_eparam_t *param_rand_f;
-	gs_eparam_t *param_uv_size;	
+	gs_eparam_t *param_uv_size;
+	gs_eparam_t *param_iteration;
 
 	int expand_left;
 	int expand_right;
@@ -193,6 +195,7 @@ static void shader_filter_reload_effect(struct shader_filter_data *filter)
 
 	// First, clean up the old effect and all references to it.
 	filter->shader_start_time = 0.0;
+	filter->iteration = 0;
 	size_t param_count = filter->stored_param_list.num;
 	for (size_t param_index = 0; param_index < param_count; param_index++)
 	{
@@ -892,7 +895,10 @@ static void shader_filter_tick(void *data, float seconds)
 
 	if (filter->shader_start_time == 0) {
 		filter->shader_start_time = filter->elapsed_time + seconds;
+	} else {
+		filter->iteration += 1;
 	}
+
 	filter->elapsed_time += seconds;
 
 	// undecided between this and "rand_float(1);" 
