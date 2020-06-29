@@ -98,3 +98,4 @@ tags
 */.DS_Store
 */**/.DS_Store
 /out
+/plugins/gitclean.bat
