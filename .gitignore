@@ -103,3 +103,4 @@ tags
 /out/install/x64-Debug
 /.github/workflows
 /out/build
+*.bad
