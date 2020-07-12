@@ -53,7 +53,7 @@
         },
         {
           "name": "CMAKE_C_COMPILER",
-          "value": "G:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.25.28610/bin/HostX64/x64/cl.exe",
+          "value": "G:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/MSVC/14.26.28801/bin/Hostx64/x64/cl.exe",
           "type": "FILEPATH"
         },
         {
