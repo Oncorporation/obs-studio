@@ -1153,17 +1153,31 @@ static bool Update(wchar_t *cmdLine)
 		GetCurrentDirectory(_countof(lpAppDataPath), lpAppDataPath);
 		StringCbCat(lpAppDataPath, sizeof(lpAppDataPath), L"\\config");
 	} else {
-		CoTaskMemPtr<wchar_t> pOut;
-		HRESULT hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData,
-						  KF_FLAG_DEFAULT, nullptr,
-						  &pOut);
-		if (hr != S_OK) {
+		DWORD ret;
+		ret = GetEnvironmentVariable(L"OBS_USER_APPDATA_PATH",
+					     lpAppDataPath,
+					     _countof(lpAppDataPath));
+
+		if (ret >= _countof(lpAppDataPath)) {
 			Status(L"Update failed: Could not determine AppData "
 			       L"location");
 			return false;
 		}
 
-		StringCbCopy(lpAppDataPath, sizeof(lpAppDataPath), pOut);
+		if (!ret) {
+			CoTaskMemPtr<wchar_t> pOut;
+			HRESULT hr = SHGetKnownFolderPath(
+				FOLDERID_RoamingAppData, KF_FLAG_DEFAULT,
+				nullptr, &pOut);
+			if (hr != S_OK) {
+				Status(L"Update failed: Could not determine AppData "
+				       L"location");
+				return false;
+			}
+
+			StringCbCopy(lpAppDataPath, sizeof(lpAppDataPath),
+				     pOut);
+		}
 	}
 
 	StringCbCat(lpAppDataPath, sizeof(lpAppDataPath), L"\\obs-studio");
@@ -1411,6 +1425,40 @@ static bool Update(wchar_t *cmdLine)
 	}
 
 	/* ------------------------------------- *
+	 * Install virtual camera                */
+
+	if (!bIsPortable) {
+		wchar_t regsvr[MAX_PATH];
+		wchar_t src[MAX_PATH];
+		wchar_t tmp[MAX_PATH];
+		wchar_t tmp2[MAX_PATH];
+
+		SHGetFolderPathW(nullptr, CSIDL_SYSTEM, nullptr,
+				 SHGFP_TYPE_CURRENT, regsvr);
+		StringCbCat(regsvr, sizeof(regsvr), L"\\regsvr32.exe");
+
+		GetCurrentDirectoryW(_countof(src), src);
+		StringCbCat(src, sizeof(src),
+			    L"\\data\\obs-plugins\\win-dshow\\");
+
+		StringCbCopy(tmp, sizeof(tmp), L"\"\"");
+		StringCbCat(tmp, sizeof(tmp), regsvr);
+		StringCbCat(tmp, sizeof(tmp), L"\" /s \"");
+		StringCbCat(tmp, sizeof(tmp), src);
+		StringCbCat(tmp, sizeof(tmp), L"obs-virtualcam-module");
+
+		StringCbCopy(tmp2, sizeof(tmp2), tmp);
+		StringCbCat(tmp2, sizeof(tmp2), L"32.dll\"\"");
+		_wsystem(tmp2);
+
+		if (is_64bit_windows()) {
+			StringCbCopy(tmp2, sizeof(tmp2), tmp);
+			StringCbCat(tmp2, sizeof(tmp2), L"64.dll\"\"");
+			_wsystem(tmp2);
+		}
+	}
+
+	/* ------------------------------------- *
 	 * Update hook files and vulkan registry */
 
 	UpdateHookFiles();
@@ -1585,6 +1633,14 @@ static int RestartAsAdmin(LPCWSTR lpCmdLine, LPCWSTR cwd)
 	 * windows :( */
 	AllowSetForegroundWindow(ASFW_ANY);
 
+	/* if the admin is a different user, save the path to the user's
+	 * appdata so we can load the correct manifest */
+	CoTaskMemPtr<wchar_t> pOut;
+	HRESULT hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData,
+					  KF_FLAG_DEFAULT, nullptr, &pOut);
+	if (hr == S_OK)
+		SetEnvironmentVariable(L"OBS_USER_APPDATA_PATH", pOut);
+
 	if (ShellExecuteEx(&shExInfo)) {
 		DWORD exitCode;
 
@@ -1629,6 +1685,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR lpCmdLine, int)
 	is32bit = wcsstr(cwd, L"bin\\32bit") != nullptr;
 
 	if (!HasElevation()) {
+
+		WinHandle hMutex = OpenMutex(
+			SYNCHRONIZE, false, L"OBSUpdaterRunningAsNonAdminUser");
+		if (hMutex) {
+			MessageBox(
+				nullptr, L"Updater Error",
+				L"OBS Studio Updater must be run as an administrator.",
+				MB_ICONWARNING);
+			return 2;
+		}
+
 		HANDLE hLowMutex = CreateMutexW(
 			nullptr, true, L"OBSUpdaterRunningAsNonAdminUser");
 
