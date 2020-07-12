@@ -14,6 +14,7 @@ volatile bool streaming_active = false;
 volatile bool recording_active = false;
 volatile bool recording_paused = false;
 volatile bool replaybuf_active = false;
+volatile bool virtualcam_active = false;
 
 #define RTMP_PROTOCOL "rtmp"
 
@@ -139,6 +140,30 @@ static void OBSReplayBufferStopping(void *data, calldata_t *params)
 	UNUSED_PARAMETER(params);
 }
 
+static void OBSStartVirtualCam(void *data, calldata_t *params)
+{
+	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
+
+	output->virtualCamActive = true;
+	os_atomic_set_bool(&virtualcam_active, true);
+	QMetaObject::invokeMethod(output->main, "OnVirtualCamStart");
+
+	UNUSED_PARAMETER(params);
+}
+
+static void OBSStopVirtualCam(void *data, calldata_t *params)
+{
+	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
+	int code = (int)calldata_int(params, "code");
+
+	output->virtualCamActive = false;
+	os_atomic_set_bool(&virtualcam_active, false);
+	QMetaObject::invokeMethod(output->main, "OnVirtualCamStop",
+				  Q_ARG(int, code));
+
+	UNUSED_PARAMETER(params);
+}
+
 static void FindBestFilename(string &strPath, bool noSpace)
 {
 	int num = 2;
@@ -192,6 +217,49 @@ static bool CreateAACEncoder(OBSEncoder &res, string &id, int bitrate,
 		return true;
 	}
 
+	return false;
+}
+
+/* ------------------------------------------------------------------------ */
+
+inline BasicOutputHandler::BasicOutputHandler(OBSBasic *main_) : main(main_)
+{
+	if (main->vcamEnabled) {
+		virtualCam = obs_output_create("virtualcam_output",
+					       "virtualcam_output", nullptr,
+					       nullptr);
+		obs_output_release(virtualCam);
+
+		signal_handler_t *signal =
+			obs_output_get_signal_handler(virtualCam);
+		startVirtualCam.Connect(signal, "start", OBSStartVirtualCam,
+					this);
+		stopVirtualCam.Connect(signal, "stop", OBSStopVirtualCam, this);
+	}
+}
+
+bool BasicOutputHandler::StartVirtualCam()
+{
+	if (main->vcamEnabled) {
+		obs_output_set_media(virtualCam, obs_get_video(),
+				     obs_get_audio());
+		return obs_output_start(virtualCam);
+	}
+	return false;
+}
+
+void BasicOutputHandler::StopVirtualCam()
+{
+	if (main->vcamEnabled) {
+		obs_output_stop(virtualCam);
+	}
+}
+
+bool BasicOutputHandler::VirtualCamActive() const
+{
+	if (main->vcamEnabled) {
+		return obs_output_active(virtualCam);
+	}
 	return false;
 }
 
@@ -367,9 +435,14 @@ SimpleOutput::SimpleOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 		bool useReplayBuffer = config_get_bool(main->Config(),
 						       "SimpleOutput", "RecRB");
 		if (useReplayBuffer) {
+			obs_data_t *hotkey;
 			const char *str = config_get_string(
 				main->Config(), "Hotkeys", "ReplayBuffer");
-			obs_data_t *hotkey = obs_data_create_from_json(str);
+			if (str)
+				hotkey = obs_data_create_from_json(str);
+			else
+				hotkey = nullptr;
+
 			replayBuffer = obs_output_create("replay_buffer",
 							 Str("ReplayBuffer"),
 							 nullptr, hotkey);
@@ -697,7 +770,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		const char *url = obs_service_get_url(service);
 		if (url != NULL &&
 		    strncmp(url, RTMP_PROTOCOL, strlen(RTMP_PROTOCOL)) != 0) {
-			type = "ffmpeg_encoded_output";
+			type = "ffmpeg_mpegts_muxer";
 		}
 	}
 
@@ -832,8 +905,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 static void remove_reserved_file_characters(string &s)
 {
-	replace(s.begin(), s.end(), '/', '_');
-	replace(s.begin(), s.end(), '\\', '_');
+	replace(s.begin(), s.end(), '\\', '/');
 	replace(s.begin(), s.end(), '*', '_');
 	replace(s.begin(), s.end(), '?', '_');
 	replace(s.begin(), s.end(), '"', '_');
@@ -1539,7 +1611,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		const char *url = obs_service_get_url(service);
 		if (url != NULL &&
 		    strncmp(url, RTMP_PROTOCOL, strlen(RTMP_PROTOCOL)) != 0) {
-			type = "ffmpeg_encoded_output";
+			type = "ffmpeg_mpegts_muxer";
 		}
 	}
 

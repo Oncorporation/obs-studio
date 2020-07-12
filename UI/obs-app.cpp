@@ -49,6 +49,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <filesystem>
 #else
 #include <signal.h>
 #include <pthread.h>
@@ -74,6 +75,7 @@ bool opt_start_streaming = false;
 bool opt_start_recording = false;
 bool opt_studio_mode = false;
 bool opt_start_replaybuffer = false;
+bool opt_start_virtualcam = false;
 bool opt_minimize_tray = false;
 bool opt_allow_opengl = false;
 bool opt_always_on_top = false;
@@ -1888,8 +1890,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 #define CRASH_MESSAGE                                                      \
 	"Woops, OBS has crashed!\n\nWould you like to copy the crash log " \
-	"to the clipboard?  (Crash logs will still be saved to the "       \
-	"%appdata%\\obs-studio\\crashes directory)"
+	"to the clipboard? The crash log will still be saved to:\n\n%s"
 
 static void main_crash_handler(const char *format, va_list args, void *param)
 {
@@ -1898,10 +1899,12 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	vsnprintf(text, MAX_CRASH_REPORT_SIZE, format, args);
 	text[MAX_CRASH_REPORT_SIZE - 1] = 0;
 
-	delete_oldest_file(true, "obs-studio/crashes");
+	string crashFilePath = "obs-studio/crashes";
 
-	string name = "obs-studio/crashes/Crash ";
-	name += GenerateTimeDateFilename("txt");
+	delete_oldest_file(true, crashFilePath.c_str());
+
+	string name = crashFilePath + "/";
+	name += "Crash " + GenerateTimeDateFilename("txt");
 
 	BPtr<char> path(GetConfigPathPtr(name.c_str()));
 
@@ -1919,7 +1922,26 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	file << text;
 	file.close();
 
-	int ret = MessageBoxA(NULL, CRASH_MESSAGE, "OBS has crashed!",
+	string pathString(path.Get());
+
+#ifdef _WIN32
+	std::replace(pathString.begin(), pathString.end(), '/', '\\');
+#endif
+
+	string absolutePath =
+		canonical(filesystem::path(pathString)).u8string();
+
+	size_t size = snprintf(nullptr, 0, CRASH_MESSAGE, absolutePath.c_str());
+
+	unique_ptr<char[]> message_buffer(new char[size + 1]);
+
+	snprintf(message_buffer.get(), size + 1, CRASH_MESSAGE,
+		 absolutePath.c_str());
+
+	string finalMessage =
+		string(message_buffer.get(), message_buffer.get() + size);
+
+	int ret = MessageBoxA(NULL, finalMessage.c_str(), "OBS has crashed!",
 			      MB_YESNO | MB_ICONERROR | MB_TASKMODAL);
 
 	if (ret == IDYES) {
@@ -2404,6 +2426,9 @@ int main(int argc, char *argv[])
 		} else if (arg_is(argv[i], "--startreplaybuffer", nullptr)) {
 			opt_start_replaybuffer = true;
 
+		} else if (arg_is(argv[i], "--startvirtualcam", nullptr)) {
+			opt_start_virtualcam = true;
+
 		} else if (arg_is(argv[i], "--collection", nullptr)) {
 			if (++i < argc)
 				opt_starting_collection = argv[i];
@@ -2426,25 +2451,31 @@ int main(int argc, char *argv[])
 			opt_allow_opengl = true;
 
 		} else if (arg_is(argv[i], "--help", "-h")) {
-			std::cout
-				<< "--help, -h: Get list of available commands.\n\n"
-				<< "--startstreaming: Automatically start streaming.\n"
-				<< "--startrecording: Automatically start recording.\n"
-				<< "--startreplaybuffer: Start replay buffer.\n\n"
-				<< "--collection <string>: Use specific scene collection."
-				<< "\n"
-				<< "--profile <string>: Use specific profile.\n"
-				<< "--scene <string>: Start with specific scene.\n\n"
-				<< "--studio-mode: Enable studio mode.\n"
-				<< "--minimize-to-tray: Minimize to system tray.\n"
-				<< "--portable, -p: Use portable mode.\n"
-				<< "--multi, -m: Don't warn when launching multiple instances.\n\n"
-				<< "--verbose: Make log more verbose.\n"
-				<< "--always-on-top: Start in 'always on top' mode.\n\n"
-				<< "--unfiltered_log: Make log unfiltered.\n\n"
-				<< "--allow-opengl: Allow OpenGL on Windows.\n\n"
-				<< "--version, -V: Get current version.\n";
+			std::string help =
+				"--help, -h: Get list of available commands.\n\n"
+				"--startstreaming: Automatically start streaming.\n"
+				"--startrecording: Automatically start recording.\n"
+				"--startreplaybuffer: Start replay buffer.\n"
+				"--startvirtualcam: Start virtual camera (if available).\n\n"
+				"--collection <string>: Use specific scene collection."
+				"\n"
+				"--profile <string>: Use specific profile.\n"
+				"--scene <string>: Start with specific scene.\n\n"
+				"--studio-mode: Enable studio mode.\n"
+				"--minimize-to-tray: Minimize to system tray.\n"
+				"--portable, -p: Use portable mode.\n"
+				"--multi, -m: Don't warn when launching multiple instances.\n\n"
+				"--verbose: Make log more verbose.\n"
+				"--always-on-top: Start in 'always on top' mode.\n\n"
+				"--unfiltered_log: Make log unfiltered.\n\n";
 
+#ifdef _WIN32
+			MessageBoxA(NULL, help.c_str(), "Help",
+				    MB_OK | MB_ICONASTERISK);
+#else
+			std::cout << help
+				  << "--version, -V: Get current version.\n";
+#endif
 			exit(0);
 
 		} else if (arg_is(argv[i], "--version", "-V")) {

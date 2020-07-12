@@ -23,6 +23,7 @@
 #include "../util/circlebuf.h"
 #include "../util/platform.h"
 #include "../util/profiler.h"
+#include "../util/util_uint64.h"
 
 #include "audio-io.h"
 #include "audio-resampler.h"
@@ -72,51 +73,6 @@ struct audio_output {
 };
 
 /* ------------------------------------------------------------------------- */
-/* the following functions are used to calculate frame offsets based upon
- * timestamps.  this will actually work accurately as long as you handle the
- * values correctly */
-
-static inline double ts_to_frames(const audio_t *audio, uint64_t ts)
-{
-	double audio_offset_d = (double)ts;
-	audio_offset_d /= 1000000000.0;
-	audio_offset_d *= (double)audio->info.samples_per_sec;
-
-	return audio_offset_d;
-}
-
-static inline double positive_round(double val)
-{
-	return floor(val + 0.5);
-}
-
-static int64_t ts_diff_frames(const audio_t *audio, uint64_t ts1, uint64_t ts2)
-{
-	double diff = ts_to_frames(audio, ts1) - ts_to_frames(audio, ts2);
-	return (int64_t)positive_round(diff);
-}
-
-static int64_t ts_diff_bytes(const audio_t *audio, uint64_t ts1, uint64_t ts2)
-{
-	return ts_diff_frames(audio, ts1, ts2) * (int64_t)audio->block_size;
-}
-
-/* ------------------------------------------------------------------------- */
-
-static inline uint64_t min_uint64(uint64_t a, uint64_t b)
-{
-	return a < b ? a : b;
-}
-
-static inline size_t min_size(size_t a, size_t b)
-{
-	return a < b ? a : b;
-}
-
-#ifndef CLAMP
-#define CLAMP(val, minval, maxval) \
-	((val > maxval) ? maxval : ((val < minval) ? minval : val))
-#endif
 
 static bool resample_audio_output(struct audio_input *input,
 				  struct audio_data *data)
