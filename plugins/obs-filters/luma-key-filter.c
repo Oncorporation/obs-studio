@@ -15,8 +15,8 @@
 #define TEXT_LUMA_MAX_SMOOTH    obs_module_text("Luma.LumaMaxSmooth")
 #define TEXT_LUMA_MIN_SMOOTH    obs_module_text("Luma.LumaMinSmooth")
 #define TEXT_COLOR              obs_module_text("Color")
-#define TEXT_INVERT_LUMA	obs_module_text("Luma.InvertLuma")
-#define TEXT_INVERT_COLOR	obs_module_text("Luma.InvertColor")
+#define TEXT_INVERT_LUMA        obs_module_text("Luma.InvertLuma")
+#define TEXT_INVERT_COLOR       obs_module_text("Luma.InvertColor")
 
 /* clang-format on */
 
@@ -34,13 +34,13 @@ struct luma_key_filter_data {
 	gs_eparam_t *invert_luma_param;
 
 
-	float		luma_max;
-	float		luma_min;
-	float		luma_max_smooth;
-	float		luma_min_smooth;
-	struct		vec4 color;
-	bool		invert_color;
-	bool		invert_luma;
+	float luma_max;
+	float luma_min;
+	float luma_max_smooth;
+	float luma_min_smooth;
+	struct vec4 color;
+	bool  invert_color;
+	bool  invert_luma;
 };
 
 static const char *luma_key_name(void *unused)
@@ -55,9 +55,9 @@ static void luma_key_update(void *data, obs_data_t *settings)
 
 	double lumaMax = obs_data_get_double(settings, SETTING_LUMA_MAX);
 	double lumaMin = obs_data_get_double(settings, SETTING_LUMA_MIN);
-	double lumaMaxSmooth = 
+	double lumaMaxSmooth =
 		obs_data_get_double(settings, SETTING_LUMA_MAX_SMOOTH);
-	double lumaMinSmooth = 
+	double lumaMinSmooth =
 		obs_data_get_double(settings, SETTING_LUMA_MIN_SMOOTH);
 	uint32_t color = (uint32_t)obs_data_get_int(settings, SETTING_COLOR);
 
@@ -134,13 +134,13 @@ static void luma_key_render(void *data, gs_effect_t *effect)
 
 	gs_effect_set_float(filter->luma_max_param, filter->luma_max);
 	gs_effect_set_float(filter->luma_min_param, filter->luma_min);
-	gs_effect_set_float(filter->luma_max_smooth_param, 
-				filter->luma_max_smooth);
-	gs_effect_set_float(filter->luma_min_smooth_param, 
-				filter->luma_min_smooth);
+	gs_effect_set_float(filter->luma_max_smooth_param,
+			    filter->luma_max_smooth);
+	gs_effect_set_float(filter->luma_min_smooth_param,
+			    filter->luma_min_smooth);
 	gs_effect_set_vec4(filter->color_param, &filter->color);
 	gs_effect_set_bool(filter->invert_color_param, 
-				filter->invert_color);
+			   filter->invert_color);
 	gs_effect_set_bool(filter->invert_luma_param, filter->invert_luma);
 
 	obs_source_process_filter_end(filter->context, filter->effect, 0, 0);
@@ -153,13 +153,13 @@ static obs_properties_t *luma_key_properties(void *data)
 	obs_properties_t *props = obs_properties_create();
 
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX, TEXT_LUMA_MAX,
-					-.1, 1.1, 0.01);
+				        -.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX_SMOOTH,
-					TEXT_LUMA_MAX_SMOOTH, -0.2, 1.2, 0.01);
+				        TEXT_LUMA_MAX_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN, TEXT_LUMA_MIN,
-					-0.1, 1.1, 0.01);
+				        -0.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN_SMOOTH,
-		TEXT_LUMA_MIN_SMOOTH, -0.2, 1.2, 0.01);
+		                        TEXT_LUMA_MIN_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_COLOR, TEXT_INVERT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_LUMA, TEXT_INVERT_LUMA);
