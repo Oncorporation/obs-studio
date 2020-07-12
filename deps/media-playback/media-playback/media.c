@@ -205,7 +205,7 @@ static bool mp_media_init_scaling(mp_media_t *m)
 					  m->v.decoder->pix_fmt,
 					  m->v.decoder->width,
 					  m->v.decoder->height, m->scale_format,
-					  SWS_FAST_BILINEAR, NULL, NULL, NULL);
+					  SWS_POINT, NULL, NULL, NULL);
 	if (!m->swscale) {
 		blog(LOG_WARNING, "MP: Failed to initialize scaler");
 		return false;
@@ -216,7 +216,7 @@ static bool mp_media_init_scaling(mp_media_t *m)
 
 	int ret = av_image_alloc(m->scale_pic, m->scale_linesizes,
 				 m->v.decoder->width, m->v.decoder->height,
-				 m->scale_format, 1);
+				 m->scale_format, 32);
 	if (ret < 0) {
 		blog(LOG_WARNING, "MP: Failed to create scale pic data");
 		return false;
@@ -587,6 +587,7 @@ static bool init_avformat(mp_media_t *m)
 		m->fmt->flags |= AVFMT_FLAG_NOBUFFER;
 	}
 	if (!m->is_local_file) {
+		av_dict_set(&opts, "stimeout", "30000000", 0);
 		m->fmt->interrupt_callback.callback = interrupt_callback;
 		m->fmt->interrupt_callback.opaque = m;
 	}
@@ -596,7 +597,9 @@ static bool init_avformat(mp_media_t *m)
 	av_dict_free(&opts);
 
 	if (ret < 0) {
-		blog(LOG_WARNING, "MP: Failed to open media: '%s'", m->path);
+		if (!m->reconnecting)
+			blog(LOG_WARNING, "MP: Failed to open media: '%s'",
+			     m->path);
 		return false;
 	}
 
@@ -606,6 +609,7 @@ static bool init_avformat(mp_media_t *m)
 		return false;
 	}
 
+	m->reconnecting = false;
 	m->has_video = mp_decode_init(m, AVMEDIA_TYPE_VIDEO, m->hw);
 	m->has_audio = mp_decode_init(m, AVMEDIA_TYPE_AUDIO, m->hw);
 
@@ -820,7 +824,7 @@ void mp_media_free(mp_media_t *media)
 	pthread_mutex_init_value(&media->mutex);
 }
 
-void mp_media_play(mp_media_t *m, bool loop)
+void mp_media_play(mp_media_t *m, bool loop, bool reconnecting)
 {
 	pthread_mutex_lock(&m->mutex);
 
@@ -829,6 +833,7 @@ void mp_media_play(mp_media_t *m, bool loop)
 
 	m->looping = loop;
 	m->active = true;
+	m->reconnecting = reconnecting;
 
 	pthread_mutex_unlock(&m->mutex);
 
