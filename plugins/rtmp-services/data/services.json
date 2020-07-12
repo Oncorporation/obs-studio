@@ -1402,21 +1402,6 @@
             }
         },
         {
-            "name": "Mixcloud",
-            "servers": [
-                {
-                    "name": "Default",
-                    "url": "rtmp://rtmp.mixcloud.com/broadcast"
-                }
-            ],
-            "recommended": {
-                "keyint": 2,
-                "max video bitrate": 6000,
-                "max audio bitrate": 320,
-                "x264opts": "scenecut=0"
-            }
-        },
-        {
             "name": "SermonAudio Cloud",
             "alt_names": [
                 "SermonAudio.com"
@@ -2025,6 +2010,21 @@
                 "keyint": 2,
                 "max audio bitrate": 256,
                 "max video bitrate": 20480
+            }
+        },
+        {
+            "name": "Taryana - Apachat | تاریانا - آپاچت",
+            "servers": [
+                {
+                    "name": "Global: Fastest (Recommended)",
+                    "url": "rtmp://cdn.apachat.com:443/multistream"
+                }
+            ],
+            "recommended": {
+                "keyint": 2,
+                "profile": "main",
+                "max video bitrate": 4000,
+                "max audio bitrate": 192
             }
         }
     ]
