@@ -1216,6 +1216,7 @@ static void handle_ts_jump(obs_source_t *source, uint64_t expected, uint64_t ts,
 
 	pthread_mutex_lock(&source->audio_buf_mutex);
 	reset_audio_timing(source, ts, os_time);
+	reset_audio_data(source, os_time);
 	pthread_mutex_unlock(&source->audio_buf_mutex);
 }
 
@@ -2373,7 +2374,7 @@ void obs_source_filter_add(obs_source_t *source, obs_source_t *filter)
 		return;
 	}
 
-	if (!filter_compatible(source, filter)) {
+	if (!source->owns_info_id && !filter_compatible(source, filter)) {
 		pthread_mutex_unlock(&source->filter_mutex);
 		return;
 	}

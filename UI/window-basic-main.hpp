@@ -21,10 +21,6 @@
 #include <QAction>
 #include <QWidgetAction>
 #include <QSystemTrayIcon>
-#ifdef _WIN32
-#include <QWinTaskbarButton>
-#include <QWinTaskbarProgress>
-#endif
 #include <QStyledItemDelegate>
 #include <obs.hpp>
 #include <vector>
@@ -82,6 +78,8 @@ struct SavedProjectorInfo {
 	int monitor;
 	std::string geometry;
 	std::string name;
+	bool alwaysOnTop;
+	bool alwaysOnTopOverridden;
 };
 
 struct QuickTransition {
@@ -164,6 +162,7 @@ class OBSBasic : public OBSMainWindow {
 	friend class ReplayBufferButton;
 	friend class ExtraBrowsersModel;
 	friend class ExtraBrowsersDelegate;
+	friend struct BasicOutputHandler;
 	friend struct OBSStudioAPI;
 
 	enum class MoveDir { Up, Down, Left, Right };
@@ -254,6 +253,9 @@ private:
 	QScopedPointer<QPushButton> pause;
 	QScopedPointer<QPushButton> replay;
 
+	QPointer<QPushButton> vcamButton;
+	bool vcamEnabled = false;
+
 	QScopedPointer<QSystemTrayIcon> trayIcon;
 	QPointer<QAction> sysTrayStream;
 	QPointer<QAction> sysTrayRecord;
@@ -276,11 +278,6 @@ private:
 	QPointer<QMenu> perSceneTransitionMenu;
 	QPointer<QObject> shortcutFilter;
 
-#ifdef _WIN32
-	QWinTaskbarButton *taskBtn = new QWinTaskbarButton(this);
-	QWinTaskbarProgress *taskProg = taskBtn->progress();
-#endif
-
 	QPointer<QWidget> programWidget;
 	QPointer<QVBoxLayout> programLayout;
 	QPointer<QLabel> programLabel;
@@ -301,7 +298,7 @@ private:
 	void UpdateVolumeControlsPeakMeterType();
 	void ClearVolumeControls();
 
-	void UploadLog(const char *subdir, const char *file);
+	void UploadLog(const char *subdir, const char *file, const bool crash);
 
 	void Save(const char *file);
 	void Load(const char *file);
@@ -380,7 +377,7 @@ private:
 	QModelIndexList GetAllSelectedSourceItems();
 
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys,
-		replayBufHotkeys, togglePreviewHotkeys;
+		replayBufHotkeys, vcamHotkeys, togglePreviewHotkeys;
 	obs_hotkey_id forceStreamingStopHotkey;
 
 	void InitDefaultTransitions();
@@ -525,6 +522,9 @@ private:
 	OBSSource GetOverrideTransition(OBSSource source);
 	int GetOverrideTransitionDuration(OBSSource source);
 
+	void UpdateProjectorHideCursor();
+	void UpdateProjectorAlwaysOnTop(bool top);
+
 public slots:
 	void DeferSaveBegin();
 	void DeferSaveEnd();
@@ -555,6 +555,12 @@ public slots:
 	void ReplayBufferSave();
 	void ReplayBufferStopping();
 	void ReplayBufferStop(int code);
+
+	void StartVirtualCam();
+	void StopVirtualCam();
+
+	void OnVirtualCamStart();
+	void OnVirtualCamStop(int code);
 
 	void SaveProjectDeferred();
 	void SaveProject();
@@ -735,6 +741,8 @@ public:
 		return os_atomic_load_bool(&previewProgramMode);
 	}
 
+	inline bool VCamEnabled() const { return vcamEnabled; }
+
 	bool StreamingActive() const;
 	bool Active() const;
 
@@ -742,6 +750,7 @@ public:
 	int ResetVideo();
 	bool ResetAudio();
 
+	void AddVCamButton();
 	void ResetOutputs();
 
 	void ResetAudioDevice(const char *sourceId, const char *deviceId,
@@ -882,6 +891,7 @@ private slots:
 
 	void on_streamButton_clicked();
 	void on_recordButton_clicked();
+	void VCamButtonClicked();
 	void on_settingsButton_clicked();
 
 	void on_actionHelpPortal_triggered();
@@ -932,6 +942,8 @@ private slots:
 	void PauseToggled();
 
 	void logUploadFinished(const QString &text, const QString &error);
+	void crashUploadFinished(const QString &text, const QString &error);
+	void openLogDialog(const QString &text, const bool crash);
 
 	void updateCheckFinished();
 
