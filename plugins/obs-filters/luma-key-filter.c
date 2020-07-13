@@ -33,14 +33,13 @@ struct luma_key_filter_data {
 	gs_eparam_t *invert_color_param;
 	gs_eparam_t *invert_luma_param;
 
-
 	float luma_max;
 	float luma_min;
 	float luma_max_smooth;
 	float luma_min_smooth;
 	struct vec4 color;
-	bool  invert_color;
-	bool  invert_luma;
+	bool invert_color;
+	bool invert_luma;
 };
 
 static const char *luma_key_name(void *unused)
@@ -66,7 +65,8 @@ static void luma_key_update(void *data, obs_data_t *settings)
 	filter->luma_max_smooth = (float)lumaMaxSmooth;
 	filter->luma_min_smooth = (float)lumaMinSmooth;
 	vec4_from_rgba(&filter->color, color);
-	filter->invert_color = obs_data_get_bool(settings, SETTING_INVERT_COLOR);
+	filter->invert_color =
+		obs_data_get_bool(settings, SETTING_INVERT_COLOR);
 	filter->invert_luma = obs_data_get_bool(settings, SETTING_INVERT_LUMA);
 }
 
@@ -103,8 +103,8 @@ static void *luma_key_create(obs_data_t *settings, obs_source_t *context)
 			filter->effect, "lumaMaxSmooth");
 		filter->luma_min_smooth_param = gs_effect_get_param_by_name(
 			filter->effect, "lumaMinSmooth");
-		filter->color_param = gs_effect_get_param_by_name(
-			filter->effect, "color");
+		filter->color_param =
+			gs_effect_get_param_by_name(filter->effect, "color");
 		filter->invert_color_param = gs_effect_get_param_by_name(
 			filter->effect, "invertColor");
 		filter->invert_luma_param = gs_effect_get_param_by_name(
@@ -139,8 +139,7 @@ static void luma_key_render(void *data, gs_effect_t *effect)
 	gs_effect_set_float(filter->luma_min_smooth_param,
 			    filter->luma_min_smooth);
 	gs_effect_set_vec4(filter->color_param, &filter->color);
-	gs_effect_set_bool(filter->invert_color_param, 
-			   filter->invert_color);
+	gs_effect_set_bool(filter->invert_color_param, filter->invert_color);
 	gs_effect_set_bool(filter->invert_luma_param, filter->invert_luma);
 
 	obs_source_process_filter_end(filter->context, filter->effect, 0, 0);
@@ -153,17 +152,16 @@ static obs_properties_t *luma_key_properties(void *data)
 	obs_properties_t *props = obs_properties_create();
 
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX, TEXT_LUMA_MAX,
-				        -.1, 1.1, 0.01);
+					-.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MAX_SMOOTH,
-				        TEXT_LUMA_MAX_SMOOTH, -0.2, 1.2, 0.01);
+					TEXT_LUMA_MAX_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN, TEXT_LUMA_MIN,
-				        -0.1, 1.1, 0.01);
+					-0.1, 1.1, 0.01);
 	obs_properties_add_float_slider(props, SETTING_LUMA_MIN_SMOOTH,
-		                        TEXT_LUMA_MIN_SMOOTH, -0.2, 1.2, 0.01);
+					TEXT_LUMA_MIN_SMOOTH, -0.2, 1.2, 0.01);
 	obs_properties_add_color(props, SETTING_COLOR, TEXT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_COLOR, TEXT_INVERT_COLOR);
 	obs_properties_add_bool(props, SETTING_INVERT_LUMA, TEXT_INVERT_LUMA);
-
 
 	UNUSED_PARAMETER(data);
 	return props;
