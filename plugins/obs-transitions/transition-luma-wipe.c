@@ -8,11 +8,15 @@
 #define S_LUMA_INV              "luma_invert"
 #define S_LUMA_SOFT             "luma_softness"
 #define S_LUMA_COLOR		"luma_color"
+#define S_LUMA_START		"luma_start_adjust"
+#define S_LUMA_STOP		"luma_stop_adjust"
 
 #define T_LUMA_IMG              obs_module_text("LumaWipe.Image")
 #define T_LUMA_INV              obs_module_text("LumaWipe.Invert")
 #define T_LUMA_SOFT             obs_module_text("LumaWipe.Softness")
 #define T_LUMA_COLOR            obs_module_text("LumaWipe.Color")
+#define T_LUMA_START            obs_module_text("LumaWipe.StartAdjust")
+#define T_LUMA_STOP           obs_module_text("LumaWipe.StopAdjust")
 
 /* clang-format on */
 
@@ -27,12 +31,16 @@ struct luma_wipe_info {
 	gs_eparam_t *ep_invert;
 	gs_eparam_t *ep_softness;
 	gs_eparam_t *ep_l_color;
+	gs_eparam_t *ep_start_adjust;
+	gs_eparam_t *ep_stop_adjust;
 
 	gs_image_file_t luma_image;
 	bool invert_luma;
 	float softness;
 	struct vec4 l_color;
 	obs_data_t *wipes_list;
+	float start_adjust;
+	float stop_adjust;
 };
 
 static const char *luma_wipe_get_name(void *type_data)
@@ -48,6 +56,8 @@ static void luma_wipe_update(void *data, obs_data_t *settings)
 	const char *name = obs_data_get_string(settings, S_LUMA_IMG);
 	lwipe->invert_luma = obs_data_get_bool(settings, S_LUMA_INV);
 	lwipe->softness = (float)obs_data_get_double(settings, S_LUMA_SOFT);
+	lwipe->start_adjust = (float)obs_data_get_double(settings, S_LUMA_START);
+	lwipe->stop_adjust = (float)obs_data_get_double(settings, S_LUMA_STOP);
 	uint32_t color = (uint32_t)obs_data_get_int(settings, S_LUMA_COLOR);
 
 	color |= 0xFF000000;
@@ -115,6 +125,8 @@ static void *luma_wipe_create(obs_data_t *settings, obs_source_t *source)
 	lwipe->ep_progress = gs_effect_get_param_by_name(effect, "progress");
 	lwipe->ep_invert = gs_effect_get_param_by_name(effect, "invert");
 	lwipe->ep_softness = gs_effect_get_param_by_name(effect, "softness");
+	lwipe->ep_start_adjust = gs_effect_get_param_by_name(effect, "start_adjust");
+	lwipe->ep_stop_adjust = gs_effect_get_param_by_name(effect, "stop_adjust");
 
 	lwipe->source = source;
 
@@ -159,6 +171,10 @@ static obs_properties_t *luma_wipe_properties(void *data)
 
 	obs_properties_add_float(props, S_LUMA_SOFT, T_LUMA_SOFT, 0.01, 1.0,
 				 0.05);
+	obs_properties_add_float(props, S_LUMA_START, T_LUMA_START, 0.00, 1.0,
+				 0.00);
+	obs_properties_add_float(props, S_LUMA_STOP, T_LUMA_STOP, 0.00, 1.0,
+				 0.00);
 	obs_properties_add_bool(props, S_LUMA_INV, T_LUMA_INV);
 	obs_properties_add_color(props, S_LUMA_COLOR, T_LUMA_COLOR);
 
@@ -169,6 +185,8 @@ static void luma_wipe_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_string(settings, S_LUMA_IMG, "linear-h.png");
 	obs_data_set_default_double(settings, S_LUMA_SOFT, 0.03);
+	obs_data_set_default_double(settings, S_LUMA_START, 0.00);
+	obs_data_set_default_double(settings, S_LUMA_STOP, 0.00);
 	obs_data_set_default_bool(settings, S_LUMA_INV, false);
 	obs_data_set_default_int(settings, S_LUMA_COLOR, 0xFF000000);
 }
@@ -185,6 +203,9 @@ static void luma_wipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 	gs_effect_set_bool(lwipe->ep_invert, lwipe->invert_luma);
 	gs_effect_set_float(lwipe->ep_softness, lwipe->softness);
+
+	gs_effect_set_float(lwipe->ep_start_adjust, lwipe->start_adjust);
+	gs_effect_set_float(lwipe->ep_stop_adjust, lwipe->stop_adjust);
 
 	gs_effect_set_vec4(lwipe->ep_l_color, &lwipe->l_color);
 
