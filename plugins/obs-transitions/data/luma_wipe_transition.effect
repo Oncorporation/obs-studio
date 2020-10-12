@@ -11,6 +11,9 @@ uniform float progress;
 uniform bool invert;
 uniform float softness;
 
+uniform float start_adjust;
+uniform float stop_adjust;
+
 sampler_state textureSampler {
 	Filter = Linear;
 	AddressU = Clamp;
@@ -37,29 +40,35 @@ float4 PSLumaWipe(VertData v_in) : TARGET
 	float4 a_color = a_tex.Sample(textureSampler, uv);
 	float4 b_color = b_tex.Sample(textureSampler, uv);
 	float luma = l_tex.Sample(textureSampler, uv).x;
-
-	if (invert)
-		luma = 1.0f - luma;
+		// - adjust for min and max
+	if ((luma >= (start_adjust)) && (luma <= (1 - stop_adjust)))
+	{
+		if (invert)
+			luma = 1.0f - luma;
 
 	// user color with luma
-	float4 out_color = float4(l_color.rgb, luma);
+		float4 out_color = float4(l_color.rgb, luma);
 
-	float time = lerp(0.0f, 1.0f + softness, progress);
+		float time = lerp(0.0f, 1.0f + softness, progress);
 
-	if (luma <= time - softness)
-	{
-		float alpha_behind = clamp(1.0 - (time - softness - luma) / softness, 0.00, 1.0);
-		return lerp(b_color, out_color, alpha_behind);
+		if (luma <= time - softness)
+		{
+			float alpha_behind = clamp(1.0 - (time - softness - luma) / softness, 0.00, 1.0);
+			return lerp(b_color, out_color, alpha_behind);
+		}
+
+		if (luma >= time)
+			return a_color;
+
+		float alpha = (time - luma) / softness;
+
+		return lerp(a_color, b_color + out_color, alpha);
 	}
-
-	if (luma >= time)
+	else
+	{
 		return a_color;
-
-	float alpha = (time - luma) / softness;
-
-	return lerp(a_color, b_color + out_color, alpha);
+	}
 }
-
 technique LumaWipe
 {
 	pass
