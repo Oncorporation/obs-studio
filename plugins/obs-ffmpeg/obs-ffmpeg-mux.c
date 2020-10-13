@@ -156,10 +156,37 @@ static void add_video_encoder_params(struct ffmpeg_muxer *stream,
 
 	obs_data_release(settings);
 
-	dstr_catf(cmd, "%s %d %d %d %d %d ", obs_encoder_get_codec(vencoder),
-		  bitrate, obs_output_get_width(stream->output),
-		  obs_output_get_height(stream->output), (int)info->fps_num,
-		  (int)info->fps_den);
+	enum AVColorPrimaries pri = AVCOL_PRI_UNSPECIFIED;
+	enum AVColorTransferCharacteristic trc = AVCOL_TRC_UNSPECIFIED;
+	enum AVColorSpace spc = AVCOL_SPC_UNSPECIFIED;
+	switch (info->colorspace) {
+	case VIDEO_CS_601:
+		pri = AVCOL_PRI_SMPTE170M;
+		trc = AVCOL_TRC_SMPTE170M;
+		spc = AVCOL_SPC_SMPTE170M;
+		break;
+	case VIDEO_CS_DEFAULT:
+	case VIDEO_CS_709:
+		pri = AVCOL_PRI_BT709;
+		trc = AVCOL_TRC_BT709;
+		spc = AVCOL_SPC_BT709;
+		break;
+	case VIDEO_CS_SRGB:
+		pri = AVCOL_PRI_BT709;
+		trc = AVCOL_TRC_IEC61966_2_1;
+		spc = AVCOL_SPC_BT709;
+		break;
+	}
+
+	const enum AVColorRange range = (info->range == VIDEO_RANGE_FULL)
+						? AVCOL_RANGE_JPEG
+						: AVCOL_RANGE_MPEG;
+
+	dstr_catf(cmd, "%s %d %d %d %d %d %d %d %d %d ",
+		  obs_encoder_get_codec(vencoder), bitrate,
+		  obs_output_get_width(stream->output),
+		  obs_output_get_height(stream->output), (int)pri, (int)trc,
+		  (int)spc, (int)range, (int)info->fps_num, (int)info->fps_den);
 }
 
 static void add_audio_encoder_params(struct dstr *cmd, obs_encoder_t *aencoder)
@@ -413,7 +440,11 @@ static void signal_failure(struct ffmpeg_muxer *stream)
 		code = OBS_OUTPUT_UNSUPPORTED;
 		break;
 	default:
-		code = OBS_OUTPUT_ERROR;
+		if (stream->is_network) {
+			code = OBS_OUTPUT_DISCONNECTED;
+		} else {
+			code = OBS_OUTPUT_ENCODE_ERROR;
+		}
 	}
 
 	obs_output_signal_stop(stream->output, code);
@@ -556,7 +587,7 @@ struct obs_output_info ffmpeg_muxer = {
 	.get_properties = ffmpeg_mux_properties,
 };
 
-static int connect_time(struct ffmpeg_mux *stream)
+static int connect_time(struct ffmpeg_muxer *stream)
 {
 	UNUSED_PARAMETER(stream);
 	/* TODO */
@@ -565,7 +596,7 @@ static int connect_time(struct ffmpeg_mux *stream)
 
 static int ffmpeg_mpegts_mux_connect_time(void *data)
 {
-	struct ffmpeg_mux *stream = data;
+	struct ffmpeg_muxer *stream = data;
 	/* TODO */
 	return connect_time(stream);
 }
@@ -615,6 +646,12 @@ static void replay_buffer_hotkey(void *data, obs_hotkey_id id,
 			return;
 		}
 
+		calldata_t cd = {0};
+
+		signal_handler_t *sh =
+			obs_output_get_signal_handler(stream->output);
+		signal_handler_signal(sh, "saved", &cd);
+
 		stream->save_ts = os_gettime_ns() / 1000LL;
 	}
 }
@@ -647,6 +684,9 @@ static void *replay_buffer_create(obs_data_t *settings, obs_output_t *output)
 	proc_handler_add(ph, "void save()", save_replay_proc, stream);
 	proc_handler_add(ph, "void get_last_replay(out string path)",
 			 get_last_replay, stream);
+
+	signal_handler_t *sh = obs_output_get_signal_handler(output);
+	signal_handler_add(sh, "void saved()");
 
 	return stream;
 }
