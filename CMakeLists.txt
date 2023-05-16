@@ -47,7 +47,7 @@ if(WIN32)
 		set(QTDIR64 "G:/Qt/5.13.0/msvc2017_64" CACHE PATH "Path to Qt (e.g. C:/Qt/5.7/msvc2017_64)")
 		set(QTDIR32 "G:/Qt/5.13.0/msvc2017" CACHE PATH "Path to Qt (e.g. C:/Qt/5.7/msvc2017)")
 		set(QTDIR "G:/Qt/5.13.0/msvc2017" CACHE PATH "Path to Qt (e.g. C:/Qt/5.7/msvc2017)")
-		#message(WARNING "QTDIR variable is missing.  Please set this variable to specify path to Qt (e.g. C:/Qt/5.7/msvc2015_64)")		
+		#message(WARNING "QTDIR variable is missing.  Please set this variable to specify path to Qt (e.g. C:/Qt/5.7/msvc2015_64)")
 	endif()
 	if (DepsPath OR DEFINED ENV{DepsPath} OR DEFINED ENV{DepsPath32} OR DEFINED ENV{DepsPath64})
 		# Dependencies path set by user or env var
@@ -64,6 +64,8 @@ set(ENABLE_SCRIPTING TRUE CACHE BOOL "Enables scripting")
 set(SCRIPTING_ENABLED OFF CACHE BOOL "Internal global cmake variable" FORCE)
 set(AMF_SDK_DIR "G:/Projects/obs-studio-oncorp/plugins/enc-amf/AMF" CACHE PATH "Path to AMF SDK")
 set(FFmpegPath "G:/Projects/obs-deps/win64" CACHE PATH "Path to FFmpeg")
+#set(FFmpeg_decode_cmakePath "C:/Users/CharlesFettinger/CMakeBuilds/537afd1c-7a5a-4ef8-ae77-de709ac9c097/build/x64-Debug/plugins/win-dshow/cmakefiles/win-dshow.dir" CACHE PATH "Path to FFmpeg decode")
+
 
 include(ObsHelpers)
 include(ObsCpack)
