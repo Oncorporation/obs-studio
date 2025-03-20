@@ -21,6 +21,7 @@
     "LumaWipe.Type.Circlein" : "circlein.png",
     "LumaWipe.Type.Circlein2" : "circlein2.png",
     "LumaWipe.Type.Circles" : "circles.png",
+    "LumaWipe.Type.ClockLeftToRight" : "clock-left-to-right.png",
     "LumaWipe.Type.ClockRightToLeft" : "clock-right-to-left.png",
     "LumaWipe.Type.Clock" : "clock.png",
     "LumaWipe.Type.Cloud" : "cloud.png",
